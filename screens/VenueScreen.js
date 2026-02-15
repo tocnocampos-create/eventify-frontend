@@ -10,6 +10,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -227,8 +228,8 @@ export default function VenueScreen() {
   );
 
   return (
-    <View style={styles.wrapper}>
-      <ScrollView 
+    <SafeAreaView style={styles.wrapper} edges={['top']}>
+      <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
       >
@@ -431,7 +432,7 @@ export default function VenueScreen() {
         </View>
       </Modal>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

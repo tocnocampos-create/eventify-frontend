@@ -12,6 +12,7 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -165,8 +166,8 @@ export default function SearchScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
+    <SafeAreaView style={styles.container}>
+      <ScrollView
         style={styles.scrollView}
       >
         <View style={styles.content}>
@@ -438,12 +439,12 @@ export default function SearchScreen() {
       </Modal>
         </View>
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#1C003D', position: 'relative' },
-  scrollView: { flex: 1, paddingTop: 60 },
+  scrollView: { flex: 1, paddingTop: 10 },
   content: { width: '100%', maxWidth: 1200, alignSelf: 'center' },
   explorarButton: {
     backgroundColor: '#2C005F',

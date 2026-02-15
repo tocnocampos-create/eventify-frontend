@@ -9,6 +9,7 @@ import {
   Image,
   ScrollView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
@@ -80,11 +81,11 @@ export default function NotificationScreen({ navigation }) {
   );
 
   return (
-    <View style={styles.container}>
-      <ScrollView 
+    <SafeAreaView style={styles.container}>
+      <ScrollView
         style={styles.scrollView}
       >
-          <Text style={[styles.sectionTitle, { marginTop: 40 }]}>
+          <Text style={[styles.sectionTitle, { marginTop: 10 }]}>
             Próximas Experiencias:
           </Text>
           {upcoming.map((event) => renderEventCard(event))}
@@ -114,7 +115,7 @@ export default function NotificationScreen({ navigation }) {
           <Text style={styles.sectionTitle}>Recomendaciones:</Text>
           {recommended.map((event) => renderEventCard(event, false))}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -12,6 +12,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import eventsData from '../data/events';
 import venues from '../data/venues';
 import { useNavigation } from '@react-navigation/native';
@@ -334,7 +335,7 @@ export default function EventsScreen() {
 
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.content}>
       {/* Buscador con botón Clear */}
       <View style={styles.searchWrapper}>
@@ -573,7 +574,7 @@ export default function EventsScreen() {
         style={{ flex: 1 }}
       />
       </View>
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -582,7 +583,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#1C003D',
     paddingHorizontal: 16,
-    paddingTop: 60,
+    paddingTop: 10,
   },
   content: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
   searchWrapper: {

@@ -1,173 +1,211 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
-  TextInput,
   TouchableOpacity,
   StyleSheet,
   Image,
+  Animated,
 } from 'react-native';
+import { useMutation } from '@tanstack/react-query';
+import { Mail, Lock } from 'lucide-react-native';
+import { useAuth } from '../contexts/AuthContext';
+import colors from '../theme/colors';
+import GlowingBackground from '../components/auth/GlowingBackground';
+import StyledInput from '../components/auth/StyledInput';
+import GradientButton from '../components/auth/GradientButton';
+import SocialButton from '../components/auth/SocialButton';
+import DividerLine from '../components/auth/DividerLine';
 
-export default function LoginScreen({ onLogin }) {
+export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const { login } = useAuth();
+
+  const logoAnim = useRef(new Animated.Value(0)).current;
+  const contentAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.stagger(200, [
+      Animated.spring(logoAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        tension: 60,
+        friction: 8,
+      }),
+      Animated.timing(contentAnim, {
+        toValue: 1,
+        duration: 400,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const loginMutation = useMutation({
+    mutationFn: () => login(email, password),
+  });
+
+  const handleLogin = () => {
+    if (!email.trim() || !password.trim()) {
+      return;
+    }
+    loginMutation.mutate();
+  };
+
+  const getErrorMessage = (error) => {
+    if (error?.response?.status === 401) {
+      return 'Correo o contraseña incorrectos';
+    }
+    if (error?.response?.status === 422) {
+      return 'Por favor ingresa un correo válido';
+    }
+    if (error?.message === 'Network Error' || !error?.response) {
+      return 'Error de conexión. Verifica tu internet';
+    }
+    return 'Ocurrió un error. Intenta de nuevo';
+  };
+
+  const logoScale = logoAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.8, 1],
+  });
+
+  const contentTranslateY = contentAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [20, 0],
+  });
 
   return (
-    <View style={styles.container}>
-      <Image source={require('../assets/logo.png')} style={styles.logo} />
+    <GlowingBackground>
+      <View style={styles.container}>
+        <Animated.View
+          style={[
+            styles.logoContainer,
+            { opacity: logoAnim, transform: [{ scale: logoScale }] },
+          ]}
+        >
+          <Image source={require('../assets/logo.png')} style={styles.logo} />
+          <Text style={styles.title}>Eventify</Text>
+          <Text style={styles.subtitle}>Descubre el ritmo de tu ciudad</Text>
+        </Animated.View>
 
-      <Text style={styles.title}>Eventify</Text>
-      <Text style={styles.subtitle}>Descubre el ritmo de tu ciudad</Text>
+        <Animated.View
+          style={[
+            styles.formContainer,
+            { opacity: contentAnim, transform: [{ translateY: contentTranslateY }] },
+          ]}
+        >
+          {loginMutation.isError && (
+            <Text style={styles.errorText}>{getErrorMessage(loginMutation.error)}</Text>
+          )}
 
-      <TextInput
-        style={styles.input}
-        placeholder="Correo"
-        placeholderTextColor="#aaa"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Contraseña"
-        placeholderTextColor="#aaa"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-      />
-
-      <TouchableOpacity style={styles.loginButton} onPress={onLogin}>
-        <Text style={styles.loginButtonText}>Iniciar Sesión</Text>
-      </TouchableOpacity>
-
-      <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
-      <Text style={styles.orText}>o inicia sesión con</Text>
-
-      <View style={styles.socialButtonsContainer}>
-        <TouchableOpacity style={styles.googleButton}>
-          <Image
-            source={require('../assets/google-icon.png')}
-            style={styles.socialIcon}
+          <StyledInput
+            icon={Mail}
+            placeholder="Correo"
+            value={email}
+            onChangeText={setEmail}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            editable={!loginMutation.isPending}
           />
-          <Text style={styles.socialText}>Continuar con Google</Text>
-        </TouchableOpacity>
 
-        <TouchableOpacity style={styles.appleButton}>
-          <Image
-            source={require('../assets/apple-icon.png')}
-            style={styles.socialIcon}
+          <StyledInput
+            icon={Lock}
+            placeholder="Contraseña"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            editable={!loginMutation.isPending}
           />
-          <Text style={styles.appleText}>Continuar con Apple</Text>
-        </TouchableOpacity>
+
+          <GradientButton
+            title="Iniciar Sesión"
+            onPress={handleLogin}
+            loading={loginMutation.isPending}
+          />
+
+          <TouchableOpacity>
+            <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
+          </TouchableOpacity>
+
+          <DividerLine text="o inicia sesión con" />
+
+          <View style={styles.socialContainer}>
+            <SocialButton
+              icon={require('../assets/google-icon.png')}
+              label="Continuar con Google"
+            />
+            <SocialButton
+              icon={require('../assets/apple-icon.png')}
+              label="Continuar con Apple"
+            />
+          </View>
+
+          <Text style={styles.signupText}>
+            ¿No tienes una cuenta?{' '}
+            <Text style={styles.signupLink} onPress={() => navigation.navigate('Register')}>
+              Regístrate
+            </Text>
+          </Text>
+        </Animated.View>
       </View>
-
-      <Text style={styles.signupText}>
-        ¿No tienes una cuenta?{' '}
-        <Text style={styles.signupLink}>Regístrate</Text>
-      </Text>
-    </View>
+    </GlowingBackground>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C0A3E',
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
   },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 28,
+  },
   logo: {
     width: 90,
     height: 90,
-    marginBottom: 20,
+    marginBottom: 16,
     resizeMode: 'contain',
   },
   title: {
-    fontSize: 32,
+    fontSize: 36,
     color: '#fff',
-    fontWeight: 'bold',
+    fontFamily: 'Outfit_700Bold',
   },
   subtitle: {
-    color: '#fff',
+    color: 'rgba(255,255,255,0.6)',
     fontSize: 14,
-    marginBottom: 30,
+    marginTop: 4,
   },
-  input: {
+  formContainer: {
     width: '100%',
-    height: 48,
-    backgroundColor: '#2C005F',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    color: '#fff',
-    marginBottom: 12,
-  },
-  loginButton: {
-    width: '100%',
-    height: 48,
-    backgroundColor: '#9B5DE5',
-    borderRadius: 8,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginVertical: 12,
   },
-  loginButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
+  errorText: {
+    color: colors.authError,
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   forgotText: {
-    color: '#aaa',
+    color: 'rgba(255,255,255,0.5)',
     fontSize: 13,
     marginTop: 4,
   },
-  orText: {
-    color: '#aaa',
-    fontSize: 13,
-    marginVertical: 10,
-  },
-  socialButtonsContainer: {
+  socialContainer: {
     width: '100%',
-    alignItems: 'center',
     gap: 10,
   },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    padding: 12,
-    borderRadius: 8,
-    width: '100%',
-  },
-  appleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    padding: 12,
-    borderRadius: 8,
-    width: '100%',
-  },
-  socialIcon: {
-    width: 20,
-    height: 20,
-    marginRight: 10,
-    resizeMode: 'contain',
-  },
-  socialText: {
-    fontSize: 15,
-    color: '#000',
-  },
-  appleText: {
-    fontSize: 15,
-    color: '#fff',
-  },
   signupText: {
-    color: '#aaa',
-    marginTop: 20,
+    color: 'rgba(255,255,255,0.5)',
+    marginTop: 24,
     fontSize: 13,
   },
   signupLink: {
-    color: '#9B5DE5',
+    color: '#BFA0FF',
     fontWeight: 'bold',
   },
 });

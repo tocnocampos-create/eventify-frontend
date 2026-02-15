@@ -12,6 +12,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import WebMap from '../components/WebMap';
@@ -388,7 +389,7 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
       {/* Imagen del evento */}
       {event?.image ? (
         <TouchableOpacity onPress={() => setLightboxVisible(true)} activeOpacity={0.9}>
@@ -589,7 +590,7 @@ export default function EventDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </View>
+    </SafeAreaView>
   );
 }
 
