@@ -1,10 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+
+import queryClient from './api/queryClient';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import EventsScreen from './screens/EventsScreen';
 import SearchScreen from './screens/SearchScreen';
@@ -66,6 +74,7 @@ function ProfileStack() {
 }
 
 function MainTabs() {
+  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -75,6 +84,7 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: '#1C0A3E',
           borderTopWidth: 0,
+          paddingBottom: insets.bottom,
         },
         tabBarIcon: ({ color, size }) => {
           switch (route.name) {
@@ -103,17 +113,25 @@ function MainTabs() {
   );
 }
 
-export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+function AppNavigator() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9B5DE5" />
+      </View>
+    );
+  }
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isLoggedIn ? (
-          <Stack.Screen
-            name="Login"
-            component={(props) => <LoginScreen {...props} onLogin={() => setIsLoggedIn(true)} />}
-          />
+        {!isAuthenticated ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
         ) : (
           <Stack.Screen name="MainTabs" component={MainTabs} />
         )}
@@ -121,3 +139,39 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9B5DE5" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#1C0A3E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
