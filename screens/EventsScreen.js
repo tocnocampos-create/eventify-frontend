@@ -12,9 +12,8 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import eventsData from '../data/events';
-import venues from '../data/venues';
+import TabScreenLayout from '../components/TabScreenLayout';
+import { useEvents, useVenues } from '../hooks/useMapData';
 import { useNavigation } from '@react-navigation/native';
 import {
   Calendar,
@@ -62,18 +61,23 @@ export default function EventsScreen() {
 
   const navigation = useNavigation();
 
+  // API data
+  const { data: venuesData = [], isLoading: venuesLoading } = useVenues();
+  const { data: eventsApiData = [], isLoading: eventsLoading } = useEvents(venuesData);
+  const isLoading = venuesLoading || eventsLoading;
+
   // —————————————————————————————————————————
   // 0) Dataset base: SOLO hoy y futuro (excluye pasado)
   // —————————————————————————————————————————
   const todayStart = useMemo(() => dayjs().startOf('day'), []);
   const upcomingData = useMemo(() => {
-    return (eventsData || []).filter((e) => {
+    return (eventsApiData || []).filter((e) => {
       const d = dayjs(e?.date);
       if (!d.isValid()) return false;
       // incluye si es el mismo día de hoy (cualquier hora) o una fecha futura
       return d.isSame(todayStart, 'day') || d.isAfter(todayStart, 'day') || d.isAfter(todayStart);
     });
-  }, [todayStart]);
+  }, [todayStart, eventsApiData]);
 
   // Helper to toggle category
   const toggleCategory = (category) => {
@@ -223,7 +227,7 @@ export default function EventsScreen() {
     const q = searchQuery.toLowerCase();
 
     setSearchVenues(
-      venues.filter(
+      (venuesData || []).filter(
         (v) =>
           v.name?.toLowerCase().includes(q) ||
           v.type?.toLowerCase().includes(q) ||
@@ -239,7 +243,7 @@ export default function EventsScreen() {
           e.description?.toLowerCase().includes(q)
       )
     );
-  }, [searchQuery, upcomingData]);
+  }, [searchQuery, upcomingData, venuesData]);
 
   // === Lógica de filtros ===
   // 1) Base por fecha usando SOLO upcomingData
@@ -335,7 +339,7 @@ export default function EventsScreen() {
 
 
   return (
-    <SafeAreaView style={styles.container}>
+    <TabScreenLayout style={styles.container}>
       <View style={styles.content}>
       {/* Buscador con botón Clear */}
       <View style={styles.searchWrapper}>
@@ -557,8 +561,15 @@ export default function EventsScreen() {
       </Modal>
 
 
+      {/* Estado de carga */}
+      {isLoading && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>Cargando eventos…</Text>
+        </View>
+      )}
+
       {/* Estado vacío si no hay resultados */}
-      {filteredEvents.length === 0 && searchQuery.length === 0 && (
+      {!isLoading && filteredEvents.length === 0 && searchQuery.length === 0 && (
         <View style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No hay eventos desde hoy en adelante</Text>
           <Text style={styles.emptySubtitle}>Prueba quitando algunos filtros o busca de nuevo.</Text>
@@ -570,11 +581,11 @@ export default function EventsScreen() {
         data={filteredEvents}
         renderItem={renderEvent}
         keyExtractor={(item) => `${item.id}`}
-        contentContainerStyle={{ paddingBottom: 100 }}
+        contentContainerStyle={{ paddingBottom: 20 }}
         style={{ flex: 1 }}
       />
       </View>
-    </SafeAreaView>
+    </TabScreenLayout>
   );
 }
 

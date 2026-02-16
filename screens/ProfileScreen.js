@@ -8,7 +8,7 @@ import {
   TouchableOpacity,
   Switch,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import TabScreenLayout from '../components/TabScreenLayout';
 export default function ProfileScreen() {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
 
@@ -30,7 +30,7 @@ export default function ProfileScreen() {
   const ticketsOptions = ['Mis Experiencias', 'Mi Agenda'];
 
   return (
-    <SafeAreaView style={styles.safeContainer}>
+    <TabScreenLayout style={styles.safeContainer}>
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
       >
@@ -97,7 +97,7 @@ export default function ProfileScreen() {
             ))}
           </View>
       </ScrollView>
-    </SafeAreaView>
+    </TabScreenLayout>
   );
 }
 
@@ -108,7 +108,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   header: {
     alignItems: 'center',

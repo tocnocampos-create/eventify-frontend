@@ -6,7 +6,7 @@ import { getEventPrice, formatPrice } from '../utils/mapHelpers.js';
 
 const filters = {
   Date: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
-  Category: ['M\u00FAsica', 'Teatro', 'Comedia', 'Arte', 'Cine'],
+  Category: ['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'],
 };
 
 const mapSpanishToEnglishDateTag = (spanish) => {
@@ -18,7 +18,7 @@ const mapSpanishToEnglishCategory = (spanish) => {
   if (spanish === 'ALL') return 'ALL';
   const normalized = normalizeCategory(spanish);
   const esToEn = {
-    'M\u00FAsica': 'Music',
+    'Música': 'Music',
     'Teatro': 'Theater',
     'Comedia': 'Humor',
     'Arte': 'Art',
@@ -57,7 +57,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
       if (hasSubcats) {
         subcats.forEach(subcat => {
           if (selectedTypes.has(`${cat}::${subcat}`)) {
-            filterPills.push(`${cat} \u00B7 ${subcat}`);
+            filterPills.push(`${cat} · ${subcat}`);
           }
         });
       } else {
@@ -68,7 +68,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
       const [cat] = typeKey.split('::');
       if (!selectedCategories.has(cat)) {
         const [c, t] = typeKey.split('::');
-        filterPills.push(`${c} \u00B7 ${t}`);
+        filterPills.push(`${c} · ${t}`);
       }
     });
     return filterPills;
@@ -154,8 +154,8 @@ export default function useHomeFilters(eventsData, searchQuery) {
       setSelectedDateTag('ALL');
       setSelectedDay(currentDate.format('YYYY-MM-DD'));
       setSelectedDays([]);
-    } else if (filter.includes(' \u00B7 ')) {
-      const [cat, subcat] = filter.split(' \u00B7 ');
+    } else if (filter.includes(' · ')) {
+      const [cat, subcat] = filter.split(' · ');
       const typeKey = `${cat}::${subcat}`;
       setSelectedTypes((prev) => { const next = new Set(prev); next.delete(typeKey); return next; });
       setSelectedCategories((prev) => { const next = new Set(prev); next.delete(cat); return next; });
@@ -202,6 +202,20 @@ export default function useHomeFilters(eventsData, searchQuery) {
     setShowDayPicker(false);
     return { resetIndex: true };
   }, [tempSelectedDays]);
+
+  // Calendar modal handler (Airbnb-style range/single date)
+  const handleCalendarApply = useCallback((days) => {
+    setSelectedDays(days);
+    setSelectedDateTag('ALL');
+    setSelectedDay(days.length === 1 ? days[0] : null);
+    if (days.length > 0) {
+      setCurrentDate(dayjs(days[0]));
+    } else {
+      setCurrentDate(dayjs());
+    }
+    setShowDayPicker(false);
+    return { resetIndex: true };
+  }, []);
 
   // Sync selectedDay with currentDate when no date tag
   useEffect(() => {
@@ -296,7 +310,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
     filteredEvents,
     // Handlers
     toggleFilter, removeFilter,
-    openDayPicker, closeDayPicker, handleDayToggle, handleClearDays, handleApplyDays,
+    openDayPicker, closeDayPicker, handleDayToggle, handleClearDays, handleApplyDays, handleCalendarApply,
     // Constants
     filters,
   };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { ChevronLeft, ChevronRight } from 'lucide-react-native';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
@@ -29,17 +29,17 @@ export default function DateSelector({
   }
 
   return (
-    <TouchableOpacity activeOpacity={0.9} onPress={onPress}>
-      <GlassOverlay style={styles.container} borderRadius={22}>
-        <TouchableOpacity onPress={onPrev} style={styles.arrow}>
-          <ChevronLeft size={16} color="#fff" />
-        </TouchableOpacity>
+    <GlassOverlay style={styles.container} borderRadius={22}>
+      <TouchableOpacity onPress={onPrev} style={styles.arrow} hitSlop={{ top: 8, bottom: 8, left: 8, right: 4 }}>
+        <ChevronLeft size={16} color="#fff" />
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onPress} style={styles.center} activeOpacity={0.7}>
         <Text style={styles.text}>{displayText}</Text>
-        <TouchableOpacity onPress={onNext} style={styles.arrow}>
-          <ChevronRight size={16} color="#fff" />
-        </TouchableOpacity>
-      </GlassOverlay>
-    </TouchableOpacity>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={onNext} style={styles.arrow} hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}>
+        <ChevronRight size={16} color="#fff" />
+      </TouchableOpacity>
+    </GlassOverlay>
   );
 }
 
@@ -53,10 +53,13 @@ const styles = StyleSheet.create({
   arrow: {
     padding: 2,
   },
+  center: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+  },
   text: {
     color: '#fff',
     fontSize: 13,
     fontFamily: 'Outfit_600SemiBold',
-    marginHorizontal: 8,
   },
 });

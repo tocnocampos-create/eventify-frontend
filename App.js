@@ -3,12 +3,12 @@ import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
 import { QueryClientProvider } from '@tanstack/react-query';
-import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 
 import queryClient from './api/queryClient';
+import FloatingTabBar from './components/FloatingTabBar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
@@ -74,35 +74,14 @@ function ProfileStack() {
 }
 
 function MainTabs() {
-  const insets = useSafeAreaInsets();
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#9B5DE5',
-        tabBarInactiveTintColor: '#ccc',
-        tabBarStyle: {
-          backgroundColor: '#1C0A3E',
-          borderTopWidth: 0,
-          paddingBottom: insets.bottom,
-        },
-        tabBarIcon: ({ color, size }) => {
-          switch (route.name) {
-            case 'Home':
-              return <Ionicons name="map-outline" size={size} color={color} />;
-            case 'Events':
-              return <MaterialCommunityIcons name="calendar-multiselect" size={size} color={color} />;
-            case 'Search':
-              return <Feather name="search" size={size} color={color} />;
-            case 'Notifications':
-              return <Ionicons name="notifications-outline" size={size} color={color} />;
-            case 'Profile':
-              return <Ionicons name="person-outline" size={size} color={color} />;
-            default:
-              return null;
-          }
-        },
-      })}
+        tabBarStyle: { position: 'absolute' },
+      }}
+      sceneContainerStyle={{ backgroundColor: '#0F0F23' }}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarLabel: 'Eventos' }} />

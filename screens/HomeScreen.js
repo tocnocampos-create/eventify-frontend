@@ -193,6 +193,11 @@ export default function HomeScreen() {
     if (result?.resetIndex) mapState.setSelectedIndex(null);
   }, [filterState.handleApplyDays]);
 
+  const handleCalendarApply = useCallback((days) => {
+    const result = filterState.handleCalendarApply(days);
+    if (result?.resetIndex) mapState.setSelectedIndex(null);
+  }, [filterState.handleCalendarApply]);
+
   // ===== Carousel scroll handlers =====
   const handleScrollBeginDrag = useCallback(() => {
     mapState.setIsCarouselScrolling(true);
@@ -264,7 +269,7 @@ export default function HomeScreen() {
 
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 2.2] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
-  const resultsTop = showFilters ? 240 : 170;
+  const resultsTop = showFilters ? 250 : 180;
   const apiKey = "AIzaSyBJymkbeUvctbb43PnnTUZ9GQNo6IeEwd0";
 
   if (isDataLoading) {
@@ -399,13 +404,13 @@ export default function HomeScreen() {
       />
 
       {/* ===== FILTER ROW (Date + Pills) ===== */}
-      <View style={[styles.filterRow, { top: insets.top + 56 }]}>
+      <View style={[styles.filterRow, { top: insets.top + 66 }]}>
         {filterState.hasCategoryOrTypeFilters ? (
           <>
             <DateSelector
               currentDate={filterState.currentDate}
-              onPrev={() => filterState.setCurrentDate((p) => p.subtract(1, 'day'))}
-              onNext={() => filterState.setCurrentDate((p) => p.add(1, 'day'))}
+              onPrev={() => { if (filterState.selectedDays.length > 0) filterState.setSelectedDays([]); filterState.setCurrentDate((p) => p.subtract(1, 'day')); }}
+              onNext={() => { if (filterState.selectedDays.length > 0) filterState.setSelectedDays([]); filterState.setCurrentDate((p) => p.add(1, 'day')); }}
               onPress={filterState.openDayPicker}
               activeDateFilterDisplay={filterState.activeDateFilterDisplay}
               selectedDays={filterState.selectedDays}
@@ -421,8 +426,8 @@ export default function HomeScreen() {
             </View>
             <DateSelector
               currentDate={filterState.currentDate}
-              onPrev={() => filterState.setCurrentDate((p) => p.subtract(1, 'day'))}
-              onNext={() => filterState.setCurrentDate((p) => p.add(1, 'day'))}
+              onPrev={() => { if (filterState.selectedDays.length > 0) filterState.setSelectedDays([]); filterState.setCurrentDate((p) => p.subtract(1, 'day')); }}
+              onNext={() => { if (filterState.selectedDays.length > 0) filterState.setSelectedDays([]); filterState.setCurrentDate((p) => p.add(1, 'day')); }}
               onPress={filterState.openDayPicker}
               activeDateFilterDisplay={filterState.activeDateFilterDisplay}
               selectedDays={filterState.selectedDays}
@@ -446,7 +451,7 @@ export default function HomeScreen() {
           onToggleFilter={handleToggleFilter}
           onSetMaxPrice={filterState.setMaxPrice}
           onTogglePricePanel={() => filterState.setShowPricePanel(prev => !prev)}
-          style={{ position: 'absolute', top: insets.top + 96, left: 15, right: 15, zIndex: 11 }}
+          style={{ position: 'absolute', top: insets.top + 106, left: 15, right: 15, zIndex: 11 }}
         />
       )}
 
@@ -497,12 +502,10 @@ export default function HomeScreen() {
       {/* ===== DAY PICKER MODAL ===== */}
       <DayPickerModal
         visible={filterState.showDayPicker}
-        tempSelectedDays={filterState.tempSelectedDays}
+        selectedDays={filterState.selectedDays}
         currentDate={filterState.currentDate}
         onClose={filterState.closeDayPicker}
-        onDayToggle={filterState.handleDayToggle}
-        onClear={filterState.handleClearDays}
-        onApply={handleApplyDays}
+        onApply={handleCalendarApply}
       />
 
       {/* ===== BARRIO DETAIL PANEL ===== */}

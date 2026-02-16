@@ -56,7 +56,7 @@ export default function FilterPanel({
 
         {/* Category */}
         <View>
-          <Text style={styles.sectionHeader}>Categor\u00EDa</Text>
+          <Text style={styles.sectionHeader}>Categoría</Text>
           <View style={styles.options}>
             {filters.Category.map((option) => {
               const isActive = selectedCategories.has(option);

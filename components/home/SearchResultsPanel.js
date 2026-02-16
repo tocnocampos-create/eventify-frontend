@@ -19,7 +19,7 @@ export default function SearchResultsPanel({
       <ScrollView>
         {searchEvents.length > 0 && (
           <View>
-            <Text style={styles.sectionTitle}>Pr\u00F3ximos Eventos</Text>
+            <Text style={styles.sectionTitle}>Próximos Eventos</Text>
             {searchEvents.map((e, i) => (
               <View key={`ev-${i}`} style={styles.row}>
                 <View style={[styles.accent, { backgroundColor: getCategoryBorderColor(e.category || '') || colors.primary }]} />
@@ -42,7 +42,7 @@ export default function SearchResultsPanel({
                 <View style={[styles.accent, { backgroundColor: colors.accent }]} />
                 <TouchableOpacity style={styles.rowContent} onPress={() => onFocusVenue(v)}>
                   <Text style={styles.name}>{v.name}</Text>
-                  <Text style={styles.sub}>{v.type}{v.city ? ` \u00B7 ${v.city}` : ''}</Text>
+                  <Text style={styles.sub}>{v.type}{v.city ? ` · ${v.city}` : ''}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => onGoToVenue(v)} style={styles.chevronBtn}>
                   <ChevronRight size={18} color={colors.primary} />

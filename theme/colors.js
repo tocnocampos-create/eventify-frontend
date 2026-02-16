@@ -33,9 +33,9 @@ export default {
   pinCine: '#3B52D8',
 
   // Category badge backgrounds
-  badgeMusica: 'rgba(159, 123, 255, 0.2)',
-  badgeTeatro: 'rgba(59, 130, 246, 0.2)',
-  badgeComedia: 'rgba(255, 105, 180, 0.2)',
-  badgeArte: 'rgba(0, 188, 212, 0.2)',
-  badgeCine: 'rgba(59, 82, 216, 0.2)',
+  badgeMusica: 'rgba(159, 123, 255, 0.7)',
+  badgeTeatro: 'rgba(59, 130, 246, 0.7)',
+  badgeComedia: 'rgba(255, 105, 180, 0.7)',
+  badgeArte: 'rgba(0, 188, 212, 0.7)',
+  badgeCine: 'rgba(59, 82, 216, 0.7)',
 };

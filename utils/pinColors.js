@@ -27,7 +27,7 @@ export const emojiForVenue = (type) => VENUE_TYPE_EMOJI[type] || '\u{1F4CD}';
 
 // Category colors for UI
 export const categoryColors = {
-  'M\u00FAsica': '#6A3EF5',
+  'Música': '#6A3EF5',
   'Teatro': '#1E91E8',
   'Comedia': '#C814E1',
   'Arte': '#14D7D7',
@@ -55,13 +55,13 @@ export const getVenuePinColor = (venueType) => {
 
   if (normalizedType === 'Teatro') return PIN_TEATRO;
   if (normalizedType === 'Cine') return PIN_CINE;
-  if (normalizedType === 'Museo' || normalizedType === 'Centro Cultural' || normalizedType === 'Galer\u00EDa') {
+  if (normalizedType === 'Museo' || normalizedType === 'Centro Cultural' || normalizedType === 'Galería') {
     return PIN_ARTE;
   }
   return PIN_PURPLE;
 };
 
 export const getCategoryBorderColor = (filterString) => {
-  const category = filterString.split(' \u00B7 ')[0];
+  const category = filterString.split(' · ')[0];
   return categoryColors[category] || null;
 };

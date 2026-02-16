@@ -12,7 +12,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import TabScreenLayout from '../components/TabScreenLayout';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import WebMap from '../components/WebMap';
@@ -20,8 +20,7 @@ import { MapView as NativeMapView, Marker as NativeMarker } from '../components/
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
-/** Usa tu dataset de venues para resolver coordenadas por nombre */
-import venues from '../data/venues';
+import { useVenues } from '../hooks/useMapData';
 import { normalizeCategory } from '../utils/filters.schema.js';
 
 // Colores de pines
@@ -180,7 +179,7 @@ function normalizeLatLng(coords) {
 }
 
 /** Busca venue por nombre y devuelve coords normalizadas */
-function getVenueCoordsByName(name) {
+function getVenueCoordsByName(name, venues) {
   if (!name || !Array.isArray(venues)) return null;
   const v = venues.find((vn) => vn?.name && vn.name.toLowerCase() === String(name).toLowerCase());
   if (!v) return null;
@@ -248,6 +247,7 @@ export default function EventDetailScreen() {
   const navigation = useNavigation();
   const route = useRoute();
   const { event } = route.params;
+  const { data: venuesData = [] } = useVenues();
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const mapRef = useRef(null);
   const webMapRef = useRef(null);
@@ -289,11 +289,11 @@ export default function EventDetailScreen() {
     if (fromEvent) return fromEvent;
 
     const venueName = event?.venueName || event?.location;
-    const fromVenue = getVenueCoordsByName(venueName);
+    const fromVenue = getVenueCoordsByName(venueName, venuesData);
     if (fromVenue) return fromVenue;
 
     return null;
-  }, [event?.coordinates, event?.venueName, event?.location]);
+  }, [event?.coordinates, event?.venueName, event?.location, venuesData]);
 
   const STREET_ZOOM_DELTA = 0.00005;
   const initialRegion = normalizedCoord
@@ -389,7 +389,7 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
+    <TabScreenLayout style={styles.container}>
       {/* Imagen del evento */}
       {event?.image ? (
         <TouchableOpacity onPress={() => setLightboxVisible(true)} activeOpacity={0.9}>
@@ -435,7 +435,7 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
 
-      <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 160 }}>
+      <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 20 }}>
         <Text style={styles.title}>{event?.title || 'Evento'}</Text>
 
         {!!event?.description && <Text style={styles.description}>{event.description}</Text>}
@@ -590,7 +590,7 @@ export default function EventDetailScreen() {
           </View>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </TabScreenLayout>
   );
 }
 

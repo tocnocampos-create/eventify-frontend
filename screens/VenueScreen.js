@@ -10,7 +10,7 @@ import {
   Modal,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import TabScreenLayout from '../components/TabScreenLayout';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
@@ -228,7 +228,7 @@ export default function VenueScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.wrapper} edges={['top']}>
+    <TabScreenLayout style={styles.wrapper}>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
@@ -432,7 +432,7 @@ export default function VenueScreen() {
         </View>
       </Modal>
       </ScrollView>
-    </SafeAreaView>
+    </TabScreenLayout>
   );
 }
 
@@ -446,7 +446,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 20,
   },
   imageGalleryContainer: {
     width: '100%',

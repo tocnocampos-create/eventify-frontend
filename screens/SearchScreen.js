@@ -12,7 +12,7 @@ import {
   Pressable,
   Alert,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import TabScreenLayout from '../components/TabScreenLayout';
 import * as Location from 'expo-location';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -166,7 +166,7 @@ export default function SearchScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <TabScreenLayout style={styles.container}>
       <ScrollView
         style={styles.scrollView}
       >
@@ -439,7 +439,7 @@ export default function SearchScreen() {
       </Modal>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </TabScreenLayout>
   );
 }
 const styles = StyleSheet.create({

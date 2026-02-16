@@ -42,7 +42,7 @@ export const formatEventDateTime = (e) => {
   if (!d || !d.isValid()) return '';
   const datePart = d.format('DD MMM YYYY');
   const timePart = e?.timeStart ? e.timeStart : null;
-  return timePart ? `${datePart} \u00B7 ${timePart}` : datePart;
+  return timePart ? `${datePart} · ${timePart}` : datePart;
 };
 
 export const getEventPrice = (event) => {

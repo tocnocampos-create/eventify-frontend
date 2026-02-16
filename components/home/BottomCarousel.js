@@ -1,57 +1,76 @@
-import React from 'react';
-import { View, Text, FlatList, ScrollView, Animated, Platform, StyleSheet, Dimensions } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
+import React, { useEffect } from 'react';
+import {
+  View, Text, FlatList, ScrollView, Platform, StyleSheet,
+} from 'react-native';
+import Animated, {
+  useSharedValue, useAnimatedStyle, withSpring,
+  interpolate, Extrapolation,
+} from 'react-native-reanimated';
 import { CalendarX2 } from 'lucide-react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventCard from './EventCard';
 import colors from '../../theme/colors';
+import { TAB_BAR_HEIGHT } from '../FloatingTabBar';
 import { categoryColors, getCategoryBorderColor } from '../../utils/pinColors';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SPRING_CONFIG = { damping: 18, stiffness: 140, mass: 0.9 };
+
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 export default function BottomCarousel({
   filteredEvents,
   selectedIndex,
   activeFilters,
   flatListRef,
-  pan,
-  panResponder,
+  pan,          // kept for interface compat — unused
+  panResponder, // kept for interface compat — unused
   onCardPress,
   onScrollBeginDrag,
   onScrollEndDrag,
   onScroll,
   onMomentumScrollEnd,
 }) {
-  const panelHeight = SCREEN_HEIGHT * 0.25;
+  const insets = useSafeAreaInsets();
+  const bottomOffset = Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 14;
 
-  // Filter out category-only pills
+  // ─── Entrance animation ───
+  const entrance = useSharedValue(0);
+
+  useEffect(() => {
+    entrance.value = 0;
+    entrance.value = withSpring(1, { ...SPRING_CONFIG, stiffness: 120 });
+  }, [filteredEvents.length > 0]);
+
+  const entranceStyle = useAnimatedStyle(() => ({
+    opacity: interpolate(entrance.value, [0, 1], [0, 1], Extrapolation.CLAMP),
+    transform: [
+      { translateY: interpolate(entrance.value, [0, 1], [60, 0], Extrapolation.CLAMP) },
+    ],
+  }));
+
+  // ─── Filter chips (compact) ───
   const carouselFilters = activeFilters.filter(filter => {
-    if (filter.includes(' \u00B7 ')) return true;
+    if (filter.includes(' · ')) return true;
     return !categoryColors.hasOwnProperty(filter);
   });
 
-  return (
-    <Animated.View
-      {...panResponder.panHandlers}
-      style={[styles.container, { height: panelHeight, transform: [{ translateY: pan }] }]}
-    >
-      <LinearGradient
-        colors={['rgba(28, 10, 62, 0.95)', colors.bg]}
-        style={StyleSheet.absoluteFill}
-      />
-      <View style={styles.content}>
-        <LinearGradient
-          colors={[colors.primaryDark, colors.primary]}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
-          style={styles.swipeBar}
-        />
+  const hasEvents = filteredEvents.length > 0;
 
-        {carouselFilters.length > 0 && (
-          <View style={styles.filterChips}>
+  return (
+    <Animated.View style={[styles.wrapper, { bottom: bottomOffset }, entranceStyle]}>
+      {/* ─── Floating pill: filter chips + count ─── */}
+      {(carouselFilters.length > 0 || hasEvents) && (
+        <View style={styles.pillRow}>
+          {hasEvents && (
+            <View style={styles.countPill}>
+              <Text style={styles.countText}>{filteredEvents.length} eventos</Text>
+            </View>
+          )}
+          {carouselFilters.length > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.filterChipsContent}
+              contentContainerStyle={styles.chipsContainer}
             >
               {carouselFilters.map((filter, index) => {
                 const borderColor = getCategoryBorderColor(filter);
@@ -61,7 +80,7 @@ export default function BottomCarousel({
                     style={[
                       styles.chip,
                       index > 0 && { marginLeft: 6 },
-                      borderColor && { borderWidth: 2, borderColor },
+                      borderColor && { borderWidth: 1.5, borderColor },
                     ]}
                   >
                     <Text style={styles.chipText}>{filter}</Text>
@@ -69,122 +88,135 @@ export default function BottomCarousel({
                 );
               })}
             </ScrollView>
-          </View>
-        )}
+          )}
+        </View>
+      )}
 
-        {filteredEvents.length > 0 && (
-          <Text style={styles.countText}>{filteredEvents.length} eventos</Text>
-        )}
-
-        {filteredEvents.length > 0 ? (
-          <FlatList
-            ref={flatListRef}
-            horizontal
-            data={filteredEvents}
-            renderItem={({ item, index }) => (
-              <EventCard
-                item={item}
-                index={index}
-                isSelected={selectedIndex === index}
-                onPress={onCardPress}
-              />
-            )}
-            keyExtractor={(item) => item.id.toString()}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ paddingHorizontal: 10 }}
-            snapToInterval={270}
-            snapToAlignment="start"
-            decelerationRate={Platform.OS === 'web' ? 0.985 : 'fast'}
-            pagingEnabled={Platform.OS === 'web'}
-            scrollEventThrottle={16}
-            getItemLayout={(data, index) => ({
-              length: 270,
-              offset: 270 * index,
-              index,
-            })}
-            initialScrollIndex={0}
-            onScrollBeginDrag={onScrollBeginDrag}
-            onScrollEndDrag={onScrollEndDrag}
-            onScroll={onScroll}
-            onMomentumScrollEnd={onMomentumScrollEnd}
-          />
-        ) : (
-          <View style={styles.emptyState}>
-            <CalendarX2 size={32} color={colors.primaryDark} />
+      {/* ─── Cards or empty state ─── */}
+      {hasEvents ? (
+        <AnimatedFlatList
+          ref={flatListRef}
+          horizontal
+          data={filteredEvents}
+          renderItem={({ item, index }) => (
+            <EventCard
+              item={item}
+              index={index}
+              isSelected={selectedIndex === index}
+              onPress={onCardPress}
+            />
+          )}
+          keyExtractor={(item) => item.id.toString()}
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ paddingHorizontal: 12 }}
+          snapToInterval={270}
+          snapToAlignment="start"
+          decelerationRate={Platform.OS === 'web' ? 0.985 : 'fast'}
+          pagingEnabled={Platform.OS === 'web'}
+          scrollEventThrottle={16}
+          getItemLayout={(data, index) => ({
+            length: 270,
+            offset: 270 * index,
+            index,
+          })}
+          initialScrollIndex={0}
+          onScrollBeginDrag={onScrollBeginDrag}
+          onScrollEndDrag={onScrollEndDrag}
+          onScroll={onScroll}
+          onMomentumScrollEnd={onMomentumScrollEnd}
+        />
+      ) : (
+        <View style={styles.emptyPill}>
+          <CalendarX2 size={22} color={colors.primaryDark} style={{ marginRight: 10 }} />
+          <View>
             <Text style={styles.emptyTitle}>No hay eventos para esta fecha</Text>
             <Text style={styles.emptySub}>Prueba cambiando la fecha o los filtros</Text>
           </View>
-        )}
-      </View>
+        </View>
+      )}
     </Animated.View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  wrapper: {
     position: 'absolute',
-    bottom: 0,
     left: 0,
     right: 0,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    overflow: 'hidden',
+    zIndex: 10,
   },
-  content: {
-    flex: 1,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  swipeBar: {
-    width: 48,
-    height: 4,
-    borderRadius: 2,
-    alignSelf: 'center',
+
+  // ─── Pill row ───
+  pillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
     marginBottom: 10,
   },
-  filterChips: {
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-  },
-  filterChipsContent: {
+  chipsContainer: {
     alignItems: 'center',
+    flexGrow: 1,
+    paddingRight: 8,
   },
   chip: {
-    backgroundColor: colors.glassLight,
-    paddingHorizontal: 12,
+    backgroundColor: 'rgba(28, 10, 62, 0.85)',
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
   chipText: {
     color: '#fff',
-    fontSize: 12,
+    fontSize: 11,
     fontFamily: 'Outfit_500Medium',
+  },
+  countPill: {
+    backgroundColor: 'rgba(28, 10, 62, 0.85)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
   },
   countText: {
-    color: colors.textDim,
-    fontSize: 12,
-    fontFamily: 'Outfit_500Medium',
-    paddingHorizontal: 14,
-    marginBottom: 6,
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold',
   },
-  emptyState: {
-    flex: 1,
-    justifyContent: 'center',
+
+  // ─── Empty state ───
+  emptyPill: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 30,
+    alignSelf: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: 18,
+    backgroundColor: 'rgba(28, 10, 62, 0.82)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.25,
+        shadowRadius: 12,
+      },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 6px 24px rgba(0,0,0,0.35)' },
+    }),
   },
   emptyTitle: {
     color: '#fff',
-    fontSize: 16,
+    fontSize: 14,
     fontFamily: 'Outfit_600SemiBold',
-    marginTop: 12,
-    marginBottom: 4,
-    textAlign: 'center',
   },
   emptySub: {
     color: colors.textDim,
-    fontSize: 14,
+    fontSize: 12,
     fontFamily: 'Outfit_400Regular',
-    textAlign: 'center',
+    marginTop: 1,
   },
 });
