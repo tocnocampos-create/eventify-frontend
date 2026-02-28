@@ -101,7 +101,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
     <View style={[styles.wrapper, { bottom: bottomOffset }]}>
       <View style={styles.container}>
         {/* Glow effect behind the bar */}
-        <View style={styles.glowOuter} />
+        {/* <View style={styles.glowOuter} /> */}
 
         <LinearGradient
           colors={['rgba(28, 10, 62, 0.95)', 'rgba(15, 8, 37, 0.98)']}
@@ -110,10 +110,14 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
           style={styles.barGradient}
         >
           <View style={styles.innerBorder}>
-            {state.routes.map((route, index) => {
+            {state.routes.filter((r) => {
+              const opts = descriptors[r.key].options;
+              return opts.tabBarButton === undefined;
+            }).map((route) => {
               const { options } = descriptors[route.key];
               const label = options.tabBarLabel ?? options.title ?? route.name;
-              const isFocused = state.index === index;
+              const actualIndex = state.routes.indexOf(route);
+              const isFocused = state.index === actualIndex;
 
               const onPress = () => {
                 const event = navigation.emit({

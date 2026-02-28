@@ -18,13 +18,13 @@ export const DEFAULT_NATIVE_REGION = {
 
 // Zoom constants
 export const CITY_ZOOM_DELTA = 0.0027;
-export const STREET_ZOOM_DELTA_WEB = 0.0001;
-export const STREET_ZOOM_DELTA_NATIVE = 0.0008;
+export const STREET_ZOOM_DELTA_WEB = 0.002;
+export const STREET_ZOOM_DELTA_NATIVE = 0.008;
 export const STREET_ZOOM_RELAX_FACTOR = 1.7;
-export const PIN_ZOOM_OUT_DELTA_WEB = 0.00022;
-export const PIN_ZOOM_OUT_DELTA_NATIVE = 0.0009;
-export const CAROUSEL_ZOOM_DELTA_WEB = 0.00012;
-export const CAROUSEL_ZOOM_DELTA_NATIVE = 0.0006;
+export const PIN_ZOOM_OUT_DELTA_WEB = 0.0008;
+export const PIN_ZOOM_OUT_DELTA_NATIVE = 0.004;
+export const CAROUSEL_ZOOM_DELTA_WEB = 0.0005;
+export const CAROUSEL_ZOOM_DELTA_NATIVE = 0.003;
 export const PIN_VERTICAL_OFFSET_FACTOR = 0.22;
 
 export const getStreetZoomDelta = () =>

@@ -57,6 +57,15 @@ export function AuthProvider({ children }) {
     setUser(userData);
   }, []);
 
+  const refreshUser = useCallback(async () => {
+    try {
+      const userData = await fetchMe();
+      setUser(userData);
+    } catch {
+      // ignore
+    }
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -66,6 +75,7 @@ export function AuthProvider({ children }) {
         login,
         register,
         logout,
+        refreshUser,
       }}
     >
       {children}

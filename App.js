@@ -20,6 +20,8 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EventDetailScreen from './screens/EventDetailScreen';
 import VenueScreen from './screens/VenueScreen';
+import OnboardingInterestsScreen from './screens/OnboardingInterestsScreen';
+import MyAgendaScreen from './screens/MyAgendaScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -69,6 +71,9 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="MyAgenda" component={MyAgendaScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="VenueScreen" component={VenueScreen} />
     </Stack.Navigator>
   );
 }
@@ -79,13 +84,12 @@ function MainTabs() {
       tabBar={(props) => <FloatingTabBar {...props} />}
       screenOptions={{
         headerShown: false,
-        tabBarStyle: { position: 'absolute' },
       }}
       sceneContainerStyle={{ backgroundColor: '#0F0F23' }}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarLabel: 'Eventos' }} />
-      <Tab.Screen name="Search" component={SearchStack} options={{ tabBarLabel: 'Explora' }} />
+      <Tab.Screen name="Search" component={SearchStack} options={{ tabBarButton: () => null, tabBarLabel: 'Explora' }} />
       <Tab.Screen name="Notifications" component={NotificationsStack} options={{ tabBarLabel: 'Notificaciones' }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>
@@ -93,7 +97,7 @@ function MainTabs() {
 }
 
 function AppNavigator() {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
 
   if (isLoading) {
     return (
@@ -103,6 +107,8 @@ function AppNavigator() {
     );
   }
 
+  const needsOnboarding = isAuthenticated && user && !user.has_interests;
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -110,6 +116,11 @@ function AppNavigator() {
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        ) : needsOnboarding ? (
+          <>
+            <Stack.Screen name="OnboardingInterests" component={OnboardingInterestsScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabs} />
           </>
         ) : (
           <Stack.Screen name="MainTabs" component={MainTabs} />

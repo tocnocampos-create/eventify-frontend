@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Animated, Dimensions, Platform, Keyboard,
+  View, Text, StyleSheet, Animated, Dimensions, Platform, Keyboard, Pressable,
 } from 'react-native';
 import WebMap from '../components/WebMap';
 import { MapView as NativeMapView, Marker as NativeMarker, Circle as NativeCircle, Polygon as NativePolygon } from '../components/NativeMap';
@@ -9,6 +9,7 @@ import { normalizeLatLng } from '../utils/geo';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useVenues, useEvents, useNeighborhoods } from '../hooks/useMapData';
+import { useSearch } from '../hooks/useSearch';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
 import 'dayjs/locale/es';
@@ -25,7 +26,7 @@ import {
 } from '../utils/pinColors';
 import {
   DEFAULT_MAP_REGION, DEFAULT_NATIVE_REGION, CITY_ZOOM_DELTA,
-  getCarouselZoomDelta, getPinZoomOutDelta,
+  getCarouselZoomDelta,
 } from '../utils/mapHelpers';
 
 // UI Components
@@ -35,7 +36,7 @@ import FilterPills from '../components/home/FilterPills';
 import FilterPanel from '../components/home/FilterPanel';
 import SearchResultsPanel from '../components/home/SearchResultsPanel';
 import BottomCarousel from '../components/home/BottomCarousel';
-import VenueCarousel from '../components/home/VenueCarousel';
+// VenueCarousel removed — venue pin tap now navigates directly to VenueScreen
 import DayPickerModal from '../components/home/DayPickerModal';
 
 dayjs.extend(isoWeek);
@@ -55,10 +56,10 @@ export default function HomeScreen() {
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchVenues, setSearchVenues] = useState([]);
-  const [searchEvents, setSearchEvents] = useState([]);
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [showBarrios, setShowBarrios] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedBarrio, setSelectedBarrio] = useState(null);
 
   // Location
@@ -111,27 +112,37 @@ export default function HomeScreen() {
     mapState.animateMapToLatLng(location.coords, { zoomDeltaOverride: CITY_ZOOM_DELTA, applyOffset: false });
   }, [location]);
 
-  // ===== Search effects =====
+  // ===== Search =====
+  const debounceRef = useRef(null);
   useEffect(() => {
     if (searchQuery.trim() === '') {
+      setDebouncedQuery('');
+      setShowSearchResults(false);
       mapState.setSelectedEventPin(null);
+      return;
     }
+    debounceRef.current = setTimeout(() => {
+      setDebouncedQuery(searchQuery.trim());
+      setShowSearchResults(true);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  useEffect(() => {
-    const q = searchQuery.trim().toLowerCase();
-    if (q === '') { setSearchVenues([]); setSearchEvents([]); return; }
-    const today = dayjs().startOf('day');
-    setSearchVenues(venues.filter((v) =>
-      v.name?.toLowerCase().includes(q) || v.type?.toLowerCase().includes(q) || v.city?.toLowerCase().includes(q)
-    ));
-    setSearchEvents(eventsData.filter((e) => {
-      const isFuture = e.date && (dayjs(e.date).isSame(today, 'day') || dayjs(e.date).isAfter(today));
-      if (!isFuture) return false;
-      return [e.title, e.description, e.location, e.category, e.type, e.dateTag]
-        .filter(Boolean).join(' ').toLowerCase().includes(q);
-    }));
-  }, [searchQuery, venues, eventsData]);
+  const searchParams = useMemo(() => {
+    if (!debouncedQuery) return {};
+    const today = dayjs();
+    return {
+      q: debouncedQuery,
+      startDate: today.format('YYYY-MM-DD'),
+      endDate: today.add(1, 'year').format('YYYY-MM-DD'),
+      returnType: 'both',
+      limit: 50,
+    };
+  }, [debouncedQuery]);
+
+  const { data: searchData } = useSearch(searchParams);
+  const searchVenues = searchData?.venues ?? [];
+  const searchEvents = searchData?.events ?? [];
 
   // ===== Handlers =====
   const handleSearchChange = useCallback((text) => {
@@ -175,10 +186,17 @@ export default function HomeScreen() {
     mapState.clearPins();
     mapState.setShowVenuePanel(false);
     navigation.navigate('VenueScreen', {
-      venueName: v.name, venueType: v.type, venueCity: v.city,
-      coverImage: v.coverImage, profileImage: v.profileImage, menuPdfUrl: v.menuPdfUrl,
+      venueId: v.id, venueName: v.name,
     });
   }, [navigation]);
+
+  const handleVenueMarkerNavigate = useCallback((vm) => {
+    const venue = venues.find((v) => v.name === vm.venueName);
+    navigation.navigate('VenueScreen', {
+      venueId: vm.venueId || venue?.id,
+      venueName: vm.venueName,
+    });
+  }, [navigation, venues]);
 
   const handleCardPress = useCallback((item, index) => {
     if (typeof index === 'number') mapState.setSelectedIndex(index);
@@ -232,28 +250,31 @@ export default function HomeScreen() {
     }
   }, [filterState.filteredEvents.length]);
 
-  const handleVenueMomentumEnd = useCallback((e) => {
-    const idx = Math.round(e.nativeEvent.contentOffset.x / 270);
-    mapState.setVenueIndex(idx);
-    const ev = mapState.venueEvents[idx];
-    if (ev) mapState.centerMapOnEvent(ev, { force: true, streetZoom: true, zoomDeltaOverride: getPinZoomOutDelta() });
-  }, [mapState.venueEvents]);
-
   // ===== Computed =====
-  const eventMarkers = useMemo(() => {
-    if (mapState.showVenuePanel) return [];
-    return (filterState.filteredEvents || [])
-      .map((ev, idx) => {
-        const latlng = mapState.getEventLatLng(ev);
-        if (!latlng) return null;
-        return {
-          id: ev.id, title: ev.title,
-          latitude: latlng.latitude, longitude: latlng.longitude,
-          pinColor: mapState.selectedIndex === idx ? '#FFFFFF' : getEventPinColor(ev),
+  const venueMarkers = useMemo(() => {
+    const grouped = {};
+    (filterState.filteredEvents || []).forEach((ev) => {
+      if (!ev.venueName) return;
+      const latlng = mapState.getEventLatLng(ev);
+      if (!latlng) return;
+      if (!grouped[ev.venueName]) {
+        const venue = venues.find((v) => v.name === ev.venueName);
+        grouped[ev.venueName] = {
+          id: ev.venueName,
+          venueName: ev.venueName,
+          venueType: venue?.type || null,
+          latitude: latlng.latitude,
+          longitude: latlng.longitude,
+          eventCount: 0,
         };
-      })
-      .filter(Boolean);
-  }, [filterState.filteredEvents, mapState.selectedIndex, mapState.showVenuePanel]);
+      }
+      grouped[ev.venueName].eventCount += 1;
+    });
+    return Object.values(grouped).map((vm) => ({
+      ...vm,
+      pinColor: getVenuePinColor(vm.venueType),
+    }));
+  }, [filterState.filteredEvents, venues]);
 
   const initialRegion = Platform.OS === 'web'
     ? {
@@ -292,12 +313,9 @@ export default function HomeScreen() {
           onPress={mapState.handleMapPress}
           userLocation={location ? { latitude: location.coords.latitude, longitude: location.coords.longitude } : null}
           circleRadius={location ? Math.max(location.coords.accuracy || 50, 30) : null}
-          eventMarkers={eventMarkers}
-          onEventMarkerPress={(id) => {
-            const evIdx = filterState.filteredEvents.findIndex((e) => e.id === id);
-            if (evIdx !== -1) { mapState.handleMarkerPress(filterState.filteredEvents[evIdx]); mapState.setShowPanel(true); }
-          }}
-          selectedEventPin={!mapState.showVenuePanel && mapState.selectedEventPin ? {
+          venueMarkers={venueMarkers}
+          onVenueMarkerPress={(vm) => handleVenueMarkerNavigate(vm)}
+          selectedEventPin={mapState.selectedEventPin ? {
             latitude: mapState.selectedEventPin.latitude, longitude: mapState.selectedEventPin.longitude,
             pinColor: getEventPinColor({ category: mapState.selectedEventPin.category }),
           } : null}
@@ -360,20 +378,42 @@ export default function HomeScreen() {
             </>
           )}
 
-          {!mapState.showVenuePanel && filterState.filteredEvents.map((event, index) => {
-            const latlng = mapState.getEventLatLng(event);
-            if (!latlng) return null;
-            return (
-              <NativeMarker
-                key={event.id} coordinate={latlng}
-                pinColor={mapState.selectedIndex === index ? '#FFFFFF' : getEventPinColor(event)}
-                onPress={(e) => { e.stopPropagation(); mapState.handleMarkerPress(event); mapState.setShowPanel(true); }}
-                zIndex={10}
-              />
-            );
-          })}
+          {venueMarkers.map((vm) => (
+            <NativeMarker
+              key={vm.id} coordinate={{ latitude: vm.latitude, longitude: vm.longitude }}
+              anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
+              onPress={(e) => {
+                e.stopPropagation();
+                handleVenueMarkerNavigate(vm);
+              }}
+              zIndex={10}
+            >
+              <View style={styles.venuePinContainer}>
+                {/* Outer glow ring */}
+                <View style={[styles.venuePinGlow, { backgroundColor: vm.pinColor + '25' }]} />
+                {/* Main pin body */}
+                <View style={[styles.venuePinBody, { backgroundColor: vm.pinColor }]}>
+                  {/* Inner glass highlight */}
+                  <View style={styles.venuePinShine} />
+                  {/* Content: count or dot */}
+                  {vm.eventCount > 1 ? (
+                    <Text style={styles.venuePinCount}>
+                      {vm.eventCount > 99 ? '99+' : vm.eventCount}
+                    </Text>
+                  ) : (
+                    <View style={styles.venuePinSingleDot} />
+                  )}
+                </View>
+                {/* Tail / pointer */}
+                <View style={[styles.venuePinPointer, { borderTopColor: vm.pinColor }]} />
+                {/* Shadow beneath pointer */}
+                <View style={styles.venuePinShadow} />
+              </View>
+            </NativeMarker>
+          ))}
 
-          {!mapState.showVenuePanel && mapState.selectedEventPin && (
+          {mapState.selectedEventPin && (
             <NativeMarker
               coordinate={{ latitude: mapState.selectedEventPin.latitude, longitude: mapState.selectedEventPin.longitude }}
               title={mapState.selectedEventPin.title}
@@ -381,13 +421,6 @@ export default function HomeScreen() {
             />
           )}
 
-          {mapState.selectedVenue && (
-            <NativeMarker
-              coordinate={{ latitude: mapState.selectedVenue.latitude, longitude: mapState.selectedVenue.longitude }}
-              title={mapState.selectedVenue.name}
-              pinColor={getVenuePinColor(mapState.selectedVenueMeta?.type)} zIndex={999}
-            />
-          )}
         </NativeMapView>
       )}
 
@@ -395,7 +428,7 @@ export default function HomeScreen() {
       <MapSearchBar
         searchQuery={searchQuery}
         onSearchChange={handleSearchChange}
-        onClear={() => { setSearchQuery(''); mapState.setSelectedEventPin(null); }}
+        onClear={() => { setSearchQuery(''); setShowSearchResults(false); mapState.setSelectedEventPin(null); }}
         showFilters={showFilters}
         onToggleFilters={handleToggleFilters}
         showBarrios={showBarrios}
@@ -456,7 +489,12 @@ export default function HomeScreen() {
       )}
 
       {/* ===== SEARCH RESULTS ===== */}
-      {searchQuery.length > 0 && (searchVenues.length > 0 || searchEvents.length > 0) && (
+      {showSearchResults && debouncedQuery.length > 0 && (searchVenues.length > 0 || searchEvents.length > 0) && (
+        <>
+        <Pressable
+          style={[StyleSheet.absoluteFill, { zIndex: 12 }]}
+          onPress={() => setShowSearchResults(false)}
+        />
         <SearchResultsPanel
           searchEvents={searchEvents}
           searchVenues={searchVenues}
@@ -466,38 +504,24 @@ export default function HomeScreen() {
           onGoToVenue={handleGoToVenue}
           style={{ position: 'absolute', top: resultsTop, left: 15, right: 15, zIndex: 13 }}
         />
+        </>
       )}
 
       {/* ===== BOTTOM CAROUSEL ===== */}
-      {!mapState.showVenuePanel && (
-        <BottomCarousel
-          filteredEvents={filterState.filteredEvents}
-          selectedIndex={mapState.selectedIndex}
-          activeFilters={filterState.activeFilters}
-          flatListRef={mapState.flatListRef}
-          pan={mapState.pan}
-          panResponder={mapState.panResponder}
-          onCardPress={handleCardPress}
-          onScrollBeginDrag={handleScrollBeginDrag}
-          onScrollEndDrag={handleScrollEndDrag}
-          onScroll={handleCarouselScroll}
-          onMomentumScrollEnd={handleMomentumScrollEnd}
-        />
-      )}
+      <BottomCarousel
+        filteredEvents={filterState.filteredEvents}
+        selectedIndex={mapState.selectedIndex}
+        activeFilters={filterState.activeFilters}
+        flatListRef={mapState.flatListRef}
+        pan={mapState.pan}
+        panResponder={mapState.panResponder}
+        onCardPress={handleCardPress}
+        onScrollBeginDrag={handleScrollBeginDrag}
+        onScrollEndDrag={handleScrollEndDrag}
+        onScroll={handleCarouselScroll}
+        onMomentumScrollEnd={handleMomentumScrollEnd}
+      />
 
-      {/* ===== VENUE CAROUSEL ===== */}
-      {mapState.showVenuePanel && mapState.selectedVenue && (
-        <VenueCarousel
-          venueEvents={mapState.venueEvents}
-          venueIndex={mapState.venueIndex}
-          selectedVenueMeta={mapState.selectedVenueMeta}
-          selectedVenue={mapState.selectedVenue}
-          pan={mapState.pan}
-          panResponder={mapState.panResponder}
-          onCardPress={handleCardPress}
-          onMomentumScrollEnd={handleVenueMomentumEnd}
-        />
-      )}
 
       {/* ===== DAY PICKER MODAL ===== */}
       <DayPickerModal
@@ -557,5 +581,81 @@ const styles = StyleSheet.create({
   },
   findMyDotInner: {
     width: 6, height: 6, borderRadius: 3, backgroundColor: '#FFFFFF',
+  },
+  // Venue pin styles (native)
+  venuePinContainer: {
+    alignItems: 'center',
+    width: 52,
+    height: 58,
+  },
+  venuePinGlow: {
+    position: 'absolute',
+    top: -2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  venuePinBody: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.85)',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  venuePinShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderTopLeftRadius: 19,
+    borderTopRightRadius: 19,
+  },
+  venuePinCount: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-black',
+    textShadowColor: 'rgba(0,0,0,0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+    zIndex: 1,
+  },
+  venuePinSingleDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    zIndex: 1,
+  },
+  venuePinPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -3,
+  },
+  venuePinShadow: {
+    width: 14,
+    height: 4,
+    borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    marginTop: 1,
   },
 });

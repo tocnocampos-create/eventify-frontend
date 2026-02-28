@@ -64,6 +64,106 @@ export function transformVenue(apiVenue) {
 }
 
 /**
+ * Transform an API review to the frontend review shape.
+ * @param {Object} apiReview - Review from the backend API
+ */
+export function transformReview(apiReview) {
+  return {
+    id: apiReview.id,
+    user: apiReview.user_name || 'Anónimo',
+    userId: apiReview.user_id || null,
+    rating: apiReview.rating,
+    comment: apiReview.comment || '',
+    createdAt: apiReview.created_at || null,
+  };
+}
+
+/**
+ * Transform an API event product to the frontend shape.
+ * @param {Object} apiProduct - Product from the backend API
+ */
+export function transformProduct(apiProduct) {
+  return {
+    id: apiProduct.id,
+    title: apiProduct.title,
+    price: apiProduct.price || null,
+    image: apiProduct.image_url || null,
+    url: apiProduct.purchase_url || null,
+  };
+}
+
+/**
+ * Transform an API community link to the frontend shape.
+ * @param {Object} apiLink - Community link from the backend API
+ */
+export function transformCommunityLink(apiLink) {
+  return {
+    id: apiLink.id,
+    platform: apiLink.platform,
+    url: apiLink.url,
+  };
+}
+
+/**
+ * Transform an API event detail response to the frontend shape.
+ * Composes transformEvent, transformVenue, and transformReview.
+ * @param {Object} apiDetail - Detail response from GET /events/{id}/detail
+ */
+export function transformEventDetail(apiDetail) {
+  const venue = apiDetail.venue ? transformVenue(apiDetail.venue) : null;
+  const venueMap = venue ? new Map([[venue.id, venue]]) : new Map();
+  const event = transformEvent(apiDetail.event || apiDetail, venueMap);
+  const reviews = Array.isArray(apiDetail.reviews)
+    ? apiDetail.reviews.map(transformReview)
+    : [];
+
+  const products = Array.isArray(apiDetail.products)
+    ? apiDetail.products.map(transformProduct)
+    : [];
+  const communityLinks = Array.isArray(apiDetail.community_links)
+    ? apiDetail.community_links.map(transformCommunityLink)
+    : [];
+
+  return {
+    event,
+    venue,
+    reviews,
+    averageRating: apiDetail.average_rating ?? null,
+    reviewCount: apiDetail.review_count ?? 0,
+    products,
+    communityLinks,
+  };
+}
+
+/**
+ * Transform an API venue detail response to the frontend shape.
+ * Composes transformVenue, transformEvent, and transformReview.
+ * @param {Object} apiDetail - Detail response from GET /venues/{id}/detail
+ */
+export function transformVenueDetail(apiDetail) {
+  const venue = transformVenue(apiDetail.venue || apiDetail);
+  const venueMap = new Map([[venue.id, venue]]);
+  const upcomingEvents = Array.isArray(apiDetail.upcoming_events)
+    ? apiDetail.upcoming_events.map((e) => transformEvent(e, venueMap))
+    : [];
+  const pastEvents = Array.isArray(apiDetail.past_events)
+    ? apiDetail.past_events.map((e) => transformEvent(e, venueMap))
+    : [];
+  const reviews = Array.isArray(apiDetail.reviews)
+    ? apiDetail.reviews.map(transformReview)
+    : [];
+
+  return {
+    venue,
+    upcomingEvents,
+    pastEvents,
+    reviews,
+    averageRating: apiDetail.average_rating ?? null,
+    reviewCount: apiDetail.review_count ?? 0,
+  };
+}
+
+/**
  * Transform an API neighborhood to the frontend barrio shape.
  * @param {Object} apiNeighborhood - Neighborhood from the backend API
  */

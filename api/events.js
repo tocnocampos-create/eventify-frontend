@@ -7,6 +7,11 @@ export async function fetchEvents({ skip = 0, limit = MAX_PER_PAGE } = {}) {
   return data;
 }
 
+export async function fetchEventDetail(eventId) {
+  const { data } = await apiClient.get(`/events/${eventId}/detail`);
+  return data;
+}
+
 export async function fetchAllEvents() {
   const results = [];
   let skip = 0;

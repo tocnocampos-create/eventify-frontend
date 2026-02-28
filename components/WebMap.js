@@ -7,8 +7,8 @@ import { View, Platform } from 'react-native';
 // - onPress: (e) => void
 // - userLocation: { latitude, longitude } | null
 // - circleRadius: number | null (meters)
-// - eventMarkers: Array<{ id: string|number, latitude: number, longitude: number, pinColor?: string }>
-// - onEventMarkerPress: (id) => void
+// - venueMarkers: Array<{ id: string, venueName: string, latitude: number, longitude: number, pinColor?: string, eventCount: number }>
+// - onVenueMarkerPress: (venueMarker) => void
 // - selectedEventPin: { latitude, longitude, category?: string } | null
 // - selectedVenuePin: { latitude, longitude, pinColor?: string } | null
 // - pinColors: { default: string, selected: string, venue: string }
@@ -43,8 +43,8 @@ const WebMap = forwardRef(function WebMap(
     onPress,
     userLocation,
     circleRadius,
-    eventMarkers,
-    onEventMarkerPress,
+    venueMarkers,
+    onVenueMarkerPress,
     selectedEventPin,
     selectedVenuePin,
     pinColors = { default: '#9F7BFF', selected: '#FFFFFF', venue: '#5FA9FF', venueSelected: '#8BC4FF' },
@@ -149,7 +149,7 @@ const WebMap = forwardRef(function WebMap(
 
   useEffect(() => {
     renderAll();
-  }, [userLocation, circleRadius, eventMarkers, selectedEventPin, selectedVenuePin, barrios]);
+  }, [userLocation, circleRadius, venueMarkers, selectedEventPin, selectedVenuePin, barrios]);
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region, duration) => {
@@ -252,49 +252,37 @@ const WebMap = forwardRef(function WebMap(
       userMarkerRef.current = null;
     }
 
-    // event markers
+    // venue markers
     markersRef.current.forEach((m) => m.setMap(null));
     markersRef.current = [];
-    const markersToCreate = eventMarkers || [];
-    // Temporary logging for debugging
-    if (__DEV__ && markersToCreate.length > 0) {
-      console.log('[WebMap] Rendering', markersToCreate.length, 'markers');
-    }
-    markersToCreate.forEach((em) => {
-      // Validate coordinates are numbers
-      const lat = typeof em.latitude === 'number' ? em.latitude : parseFloat(em.latitude);
-      const lng = typeof em.longitude === 'number' ? em.longitude : parseFloat(em.longitude);
-      
-      if (!em || isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
-        if (__DEV__) console.warn('[WebMap] Invalid marker data:', em, 'lat:', lat, 'lng:', lng);
+    const markersToCreate = venueMarkers || [];
+    markersToCreate.forEach((vm) => {
+      const lat = typeof vm.latitude === 'number' ? vm.latitude : parseFloat(vm.latitude);
+      const lng = typeof vm.longitude === 'number' ? vm.longitude : parseFloat(vm.longitude);
+
+      if (!vm || isNaN(lat) || isNaN(lng) || lat < -90 || lat > 90 || lng < -180 || lng > 180) {
         return;
       }
-      
+
       try {
-        const markerOptions = {
+        const iconColor = vm.pinColor || pinColors?.default || '#9F7BFF';
+        const marker = new maps.Marker({
           map: mapRef.current,
           position: { lat, lng },
           zIndex: 10,
-          title: em.title || '',
-        };
-        const iconColor = em.pinColor || pinColors?.default || '#9F7BFF';
-        markerOptions.icon = pinIcon(maps, iconColor);
-        
-        const marker = new maps.Marker(markerOptions);
-        if (onEventMarkerPress) {
+          title: vm.venueName || '',
+          icon: venuePinIcon(maps, iconColor, vm.eventCount || 1),
+        });
+        if (onVenueMarkerPress) {
           marker.addListener('click', () => {
-            if (__DEV__) console.log('[WebMap] Marker clicked:', em.id);
-            onEventMarkerPress(em.id);
+            onVenueMarkerPress(vm);
           });
         }
         markersRef.current.push(marker);
       } catch (error) {
-        if (__DEV__) console.error('[WebMap] Failed to create marker:', error, em);
+        if (__DEV__) console.error('[WebMap] Failed to create marker:', error, vm);
       }
     });
-    if (__DEV__ && markersRef.current.length > 0) {
-      console.log('[WebMap] Created', markersRef.current.length, 'markers successfully');
-    }
 
     // selected event (temp) marker
     if (selectedEventPin) {
@@ -322,9 +310,8 @@ const WebMap = forwardRef(function WebMap(
         lat: selectedVenuePin.latitude,
         lng: selectedVenuePin.longitude,
       });
-      // Use category-based color if provided, otherwise use default venue color
       const venueColor = selectedVenuePin.pinColor || pinColors.venue;
-      venueMarkerRef.current.setIcon(pinIcon(maps, venueColor));
+      venueMarkerRef.current.setIcon(venuePinIcon(maps, venueColor, 1));
     } else if (venueMarkerRef.current) {
       venueMarkerRef.current.setMap(null);
       venueMarkerRef.current = null;
@@ -568,6 +555,39 @@ function pinIcon(maps, color) {
     scale: 1.4,
     anchor: new maps.Point(12, 24),
     labelOrigin: new maps.Point(12, -6),
+  };
+}
+
+function venuePinIcon(maps, color, count) {
+  if (!maps) return null;
+  const W = 40;
+  const H = 52;
+  const label = count > 1 ? (count > 99 ? '99+' : String(count)) : '';
+  const centerContent = label
+    ? `<text x="20" y="22" font-family="system-ui,-apple-system,Arial,sans-serif" font-size="14" font-weight="800" fill="#FFFFFF" text-anchor="middle" dominant-baseline="central">${label}</text>`
+    : `<circle cx="20" cy="20" r="4.5" fill="rgba(255,255,255,0.9)" />`;
+  const svg = `
+<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <filter id="ds" x="-20%" y="-10%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" />
+      <feOffset dy="2" />
+      <feComponentTransfer><feFuncA type="linear" slope="0.3" /></feComponentTransfer>
+      <feMerge><feMergeNode /><feMergeNode in="SourceGraphic" /></feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#ds)">
+    <path d="M20 48 L15 34 A16 16 0 1 1 25 34 Z" fill="${color}" stroke="rgba(255,255,255,0.85)" stroke-width="2.5" />
+    <ellipse cx="20" cy="19" rx="13" ry="8" fill="rgba(255,255,255,0.15)" />
+    ${centerContent}
+  </g>
+  <ellipse cx="20" cy="50" rx="5" ry="2" fill="rgba(0,0,0,0.12)" />
+</svg>`;
+  const url = svgToDataUrl(svg);
+  return {
+    url,
+    anchor: new maps.Point(W / 2, H),
+    scaledSize: new maps.Size(W, H),
   };
 }
 

@@ -1,5 +1,5 @@
 // screens/EventsScreen.js
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,31 +7,65 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
+  Pressable,
   Image,
   Modal,
   ScrollView,
   Platform,
 } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
-import { useEvents, useVenues } from '../hooks/useMapData';
+import GlassOverlay from '../components/home/GlassOverlay';
+import { useSearch } from '../hooks/useSearch';
 import { useNavigation } from '@react-navigation/native';
 import {
   Calendar,
   Music,
-  Drama,        // reemplazo del ícono Theater por Drama (lucide)
+  Drama,
   Laugh,
   Palette,
   Clapperboard,
   X,
+  Search,
+  MapPin,
 } from 'lucide-react-native';
+import { Ionicons } from '@expo/vector-icons';
+import colors from '../theme/colors';
+import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
+import { formatEventDateTime } from '../utils/mapHelpers';
+import { categoryColors } from '../utils/pinColors';
+import { normalizeCategory } from '../utils/filters.schema';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
 
 // ✅ utilidades de filtros (solo lógica)
-import { applyEventFilters } from '../utils/filtering.js';
-import { SUBCATEGORIES, normalizeEventType, normalizeCategory } from '../utils/filters.schema.js';
+import { isLive } from '../utils/filtering.js';
+import { SUBCATEGORIES, normalizeEventType } from '../utils/filters.schema.js';
+
+function SaveButton({ eventId }) {
+  const { data: isSaved } = useIsEventSaved(eventId);
+  const { mutate: toggle } = useToggleSaveEvent(eventId);
+
+  return (
+    <TouchableOpacity
+      style={[styles.saveBtn, isSaved && styles.saveBtnActive]}
+      activeOpacity={0.7}
+      onPress={(e) => { e.stopPropagation?.(); toggle(!!isSaved); }}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+    >
+      <Ionicons
+        name={isSaved ? 'bookmark' : 'bookmark-outline'}
+        size={16}
+        color={isSaved ? '#BFA0FF' : '#fff'}
+      />
+      <Text style={[styles.saveBtnText, isSaved && styles.saveBtnTextActive]}>
+        {isSaved ? 'Guardado' : 'Guardar'}
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 const FILTERS = {
   Fecha: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
@@ -42,42 +76,74 @@ const FILTERS = {
   Cine: SUBCATEGORIES['Cine'],
 };
 
-const DATE_OPTIONS = FILTERS.Fecha;
-
-// Mapeo de nombres en español a canónicos en inglés
-const mapSpanishToEnglishDateTag = (spanish) => {
-  const mapping = { 'Ahora': 'Live', 'Hoy': 'Today', 'Esta semana': 'This Week', 'Este mes': 'This Month', 'ALL': 'ALL' };
-  return mapping[spanish] || spanish;
+const badgeColors = {
+  'Música': colors.badgeMusica,
+  'Teatro': colors.badgeTeatro,
+  'Comedia': colors.badgeComedia,
+  'Arte': colors.badgeArte,
+  'Cine': colors.badgeCine,
 };
+
+
+// Helper: compute date range from Spanish date tag
+function getDateRange(tag) {
+  const today = dayjs();
+  switch (tag) {
+    case 'Hoy':
+      return { startDate: today.format('YYYY-MM-DD'), endDate: today.format('YYYY-MM-DD') };
+    case 'Esta semana': {
+      const endOfWeek = today.endOf('week');
+      return { startDate: today.format('YYYY-MM-DD'), endDate: endOfWeek.format('YYYY-MM-DD') };
+    }
+    case 'Este mes': {
+      const endOfMonth = today.endOf('month');
+      return { startDate: today.format('YYYY-MM-DD'), endDate: endOfMonth.format('YYYY-MM-DD') };
+    }
+    default:
+      // ALL or Ahora: today to +1 year
+      return { startDate: today.format('YYYY-MM-DD'), endDate: today.add(1, 'year').format('YYYY-MM-DD') };
+  }
+}
 
 export default function EventsScreen() {
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState(null);
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [selectedTypes, setSelectedTypes] = useState(new Set());
   const [selectedDateTag, setSelectedDateTag] = useState('ALL');
-  const [searchVenues, setSearchVenues] = useState([]);
-  const [searchEvents, setSearchEvents] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const navigation = useNavigation();
 
-  // API data
-  const { data: venuesData = [], isLoading: venuesLoading } = useVenues();
-  const { data: eventsApiData = [], isLoading: eventsLoading } = useEvents(venuesData);
-  const isLoading = venuesLoading || eventsLoading;
+  // Debounce search query (300ms)
+  const debounceRef = useRef(null);
+  useEffect(() => {
+    debounceRef.current = setTimeout(() => {
+      const trimmed = searchQuery.trim();
+      setDebouncedQuery(trimmed);
+      if (trimmed.length > 0) setShowDropdown(true);
+      else setShowDropdown(false);
+    }, 300);
+    return () => clearTimeout(debounceRef.current);
+  }, [searchQuery]);
 
-  // —————————————————————————————————————————
-  // 0) Dataset base: SOLO hoy y futuro (excluye pasado)
-  // —————————————————————————————————————————
-  const todayStart = useMemo(() => dayjs().startOf('day'), []);
-  const upcomingData = useMemo(() => {
-    return (eventsApiData || []).filter((e) => {
-      const d = dayjs(e?.date);
-      if (!d.isValid()) return false;
-      // incluye si es el mismo día de hoy (cualquier hora) o una fecha futura
-      return d.isSame(todayStart, 'day') || d.isAfter(todayStart, 'day') || d.isAfter(todayStart);
-    });
-  }, [todayStart, eventsApiData]);
+  // Build search params for backend
+  const searchParams = useMemo(() => {
+    const { startDate, endDate } = getDateRange(selectedDateTag);
+    return {
+      q: debouncedQuery || undefined,
+      startDate,
+      endDate,
+      returnType: 'both',
+      limit: 200,
+    };
+  }, [debouncedQuery, selectedDateTag]);
+
+  // API data via backend search
+  const { data: searchData, isLoading } = useSearch(searchParams);
+  const venuesData = searchData?.venues ?? [];
+  const eventsApiData = searchData?.events ?? [];
 
   // Helper to toggle category
   const toggleCategory = (category) => {
@@ -90,16 +156,13 @@ export default function EventsScreen() {
       }
       return next;
     });
-    // Keep modal open for multi-select
   };
 
   // Helper to toggle type (with category context)
   const toggleType = (type, category = null) => {
-    // If category not provided, try to use activeFilter
     const cat = category || activeFilter;
-    // Only create category::type key if we have a valid category context
     const typeKey = cat && cat !== 'Fecha' ? `${cat}::${type}` : type;
-    
+
     setSelectedTypes((prev) => {
       const next = new Set(prev);
       if (next.has(typeKey)) {
@@ -109,40 +172,34 @@ export default function EventsScreen() {
       }
       return next;
     });
-    // Keep modal open for multi-select
   };
 
   // Helper to toggle date tag
   const toggleDateTag = (tag) => {
     setSelectedDateTag((prev) => (prev === tag ? 'ALL' : tag));
-    setActiveFilter(null); // Close modal for single-select date
+    setActiveFilter(null);
   };
 
   // Helper to remove a filter from chips
   const removeFilter = (filter) => {
-    // Check if it's a date tag
     if (FILTERS.Fecha.includes(filter)) {
       setSelectedDateTag('ALL');
     } else if (filter.includes(' · ')) {
-      // Remove "Category · Subcategory" pill - remove both category and subcategory in one click
       const [cat, subcat] = filter.split(' · ');
       const typeKey = `${cat}::${subcat}`;
-      
-      // Remove the subcategory
+
       setSelectedTypes((prev) => {
         const next = new Set(prev);
         next.delete(typeKey);
         return next;
       });
-      
-      // Also remove the category if it's selected
+
       setSelectedCategories((prev) => {
         const next = new Set(prev);
         next.delete(cat);
         return next;
       });
     } else if (['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'].includes(filter)) {
-      // Remove category-only pill
       setSelectedCategories((prev) => {
         const next = new Set(prev);
         next.delete(filter);
@@ -163,7 +220,6 @@ export default function EventsScreen() {
     if (activeFilter === 'Fecha') {
       setSelectedDateTag('ALL');
     } else if (activeFilter && SUBCATEGORIES[activeFilter]) {
-      // Clear all subcategories for this category
       const subcats = SUBCATEGORIES[activeFilter];
       setSelectedTypes((prev) => {
         const next = new Set(prev);
@@ -185,93 +241,41 @@ export default function EventsScreen() {
   // Get all selected filters as an array for displaying chips
   const selectedFilters = useMemo(() => {
     const filterPills = [];
-    
-    // Process categories and types
-    // For each category in selectedCategories, check if it has subcategories
+
     selectedCategories.forEach(cat => {
-      // Check if any subcategories of this category are in selectedTypes
       const subcats = SUBCATEGORIES[cat] ?? [];
       const hasSubcats = subcats.some(subcat => selectedTypes.has(`${cat}::${subcat}`));
-      
+
       if (hasSubcats) {
-        // Add one pill per subcategory
         subcats.forEach(subcat => {
           if (selectedTypes.has(`${cat}::${subcat}`)) {
             filterPills.push(`${cat} · ${subcat}`);
           }
         });
       } else {
-        // Category-only pill
         filterPills.push(cat);
       }
     });
-    
-    // Check for any orphaned types (types without their parent category selected)
+
     selectedTypes.forEach(typeKey => {
       const [cat, type] = typeKey.split('::');
       if (!selectedCategories.has(cat)) {
         filterPills.push(`${cat} · ${type}`);
       }
     });
-    
+
     return filterPills;
   }, [selectedCategories, selectedTypes]);
 
-  // === Búsqueda global (venues + events) ===
-  useEffect(() => {
-    if (!searchQuery) {
-      setSearchVenues([]);
-      setSearchEvents([]);
-      return;
-    }
-    const q = searchQuery.toLowerCase();
-
-    setSearchVenues(
-      (venuesData || []).filter(
-        (v) =>
-          v.name?.toLowerCase().includes(q) ||
-          v.type?.toLowerCase().includes(q) ||
-          v.city?.toLowerCase().includes(q)
-      )
-    );
-
-    setSearchEvents(
-      upcomingData.filter(
-        (e) =>
-          e.title?.toLowerCase().includes(q) ||
-          e.location?.toLowerCase().includes(q) ||
-          e.description?.toLowerCase().includes(q)
-      )
-    );
-  }, [searchQuery, upcomingData, venuesData]);
-
-  // === Lógica de filtros ===
-  // 1) Base por fecha usando SOLO upcomingData
-  const baseByDate = useMemo(() => {
-    const dateTagEn = mapSpanishToEnglishDateTag(selectedDateTag);
-    return applyEventFilters(upcomingData, {
-      dateTag: dateTagEn,   // Live / Today / This Week / This Month / ALL
-      category: 'ALL',
-      type: 'ALL',
-      specificDay: null,
-    });
-  }, [upcomingData, selectedDateTag]);
-
-  // 2) Búsqueda por texto + filtrado por category/type (OR logic)
+  // === Lógica de filtros (client-side post-filtering) ===
   const filteredEvents = useMemo(() => {
-    const q = (searchQuery || '').trim().toLowerCase();
-    let list = baseByDate;
+    let list = eventsApiData;
 
-    // Apply text search
-    if (q) {
-      list = list.filter(
-        (event) =>
-          event.title?.toLowerCase().includes(q) ||
-          event.description?.toLowerCase().includes(q)
-      );
+    // "Ahora" (Live) filter — requires real-time client-side check
+    if (selectedDateTag === 'Ahora') {
+      list = list.filter((e) => isLive(e));
     }
 
-    // Apply category/type filters (OR logic: category OR type)
     const hasCategoryFilters = selectedCategories.size > 0;
     const hasTypeFilters = selectedTypes.size > 0;
 
@@ -279,94 +283,147 @@ export default function EventsScreen() {
       list = list.filter((e) => {
         const evCatCanonical = normalizeCategory(e?.category);
         const evTypeNormalized = normalizeEventType(e?.type);
-        
-        // Check if event matches category filter
+
         const matchesCategory = hasCategoryFilters && selectedCategories.has(evCatCanonical);
-        
-        // Check if event matches type filter - need to check for "category::type" key
+
         const eventTypeKey = `${evCatCanonical}::${evTypeNormalized}`;
         const matchesType = hasTypeFilters && selectedTypes.has(eventTypeKey);
-        
-        // Match if either category or type matches
+
         return matchesCategory || matchesType;
       });
     }
 
-    // redundante pero seguro: NO mostrar pasado si llegara algo por error
-    list = list.filter((e) => {
-      const d = dayjs(e?.date);
-      return d.isValid() && (d.isSame(todayStart, 'day') || d.isAfter(todayStart));
-    });
-
     return list;
-  }, [baseByDate, searchQuery, selectedCategories, selectedTypes, todayStart]);
+  }, [eventsApiData, selectedDateTag, selectedCategories, selectedTypes]);
 
-  // —————————————————————————————————————————
-  // Formato de fecha igual a HomeScreen:
-  // "D MMM YYYY" + (", HH:mm" si el string original trae hora)
-  // y venue al lado con un " · "
-  // —————————————————————————————————————————
-  const formatDateForCard = (dateStr) => {
-    const d = dayjs(dateStr);
-    if (!d.isValid()) return '';
-    const hasTime = /\d{1,2}:\d{2}/.test(String(dateStr));
-    const base = d.format('D MMM YYYY'); // ej: "24 jul 2025"
-    return hasTime ? `${base}, ${d.format('HH:mm')}` : base;
+  // Check if a filter category is active
+  const isFilterActive = (filterName) => {
+    if (filterName === 'Fecha') return selectedDateTag !== 'ALL';
+    return selectedCategories.has(filterName) || Array.from(selectedTypes).some(key => key.startsWith(`${filterName}::`));
   };
 
-  const renderEvent = ({ item }) => {
-    const dateTxt = formatDateForCard(item?.date);
-    const venueTxt = item?.location ? ` · ${item.location}` : '';
+  const renderFilterButton = (filterName, IconComponent) => {
+    const active = isFilterActive(filterName);
     return (
       <TouchableOpacity
-        style={styles.eventCard}
-        onPress={() => navigation.navigate('EventDetail', { event: item })}
+        onPress={() => setActiveFilter(filterName)}
+        activeOpacity={0.7}
       >
-        {item?.image ? (
-          <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+        {active ? (
+          <LinearGradient
+            colors={[colors.authGradientStart, colors.authGradientEnd]}
+            style={styles.filterButton}
+          >
+            <IconComponent color="#fff" size={20} />
+          </LinearGradient>
         ) : (
-          <View style={[styles.image, { backgroundColor: '#3E2670' }]} />
+          <View style={styles.filterButton}>
+            <IconComponent color={colors.textDim} size={20} />
+          </View>
         )}
-        <View style={styles.eventInfo}>
-          <Text style={styles.eventTitle} numberOfLines={2}>{item?.title || ''}</Text>
-          <Text style={styles.eventDate} numberOfLines={1}>
-            {dateTxt}{venueTxt}
-          </Text>
-        </View>
       </TouchableOpacity>
     );
   };
 
+  const renderEvent = ({ item }) => {
+    const category = normalizeCategory(item?.category);
+    const catColor = categoryColors[category] || colors.primary;
+    const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
+
+    return (
+      <TouchableOpacity
+        style={styles.eventCard}
+        activeOpacity={0.9}
+        onPress={() => navigation.navigate('EventDetail', { event: item })}
+      >
+        {item?.image ? (
+          <View style={styles.imageContainer}>
+            <Image source={{ uri: item.image }} style={styles.image} resizeMode="cover" />
+            <LinearGradient
+              colors={['transparent', 'rgba(15, 5, 35, 0.85)']}
+              style={StyleSheet.absoluteFillObject}
+            />
+            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+              <Text style={styles.badgeText}>{category}</Text>
+            </View>
+            <SaveButton eventId={item.id} />
+          </View>
+        ) : (
+          <View style={[styles.imagePlaceholder]}>
+            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+              <Text style={styles.badgeText}>{category}</Text>
+            </View>
+            <SaveButton eventId={item.id} />
+          </View>
+        )}
+        <View style={styles.eventInfo}>
+          <Text style={styles.eventTitle} numberOfLines={2}>{item?.title || ''}</Text>
+          <View style={styles.metaRow}>
+            <Calendar size={13} color={colors.textDim} />
+            <Text style={styles.metaText}>{formatEventDateTime(item)}</Text>
+          </View>
+          {!!item?.location && (
+            <View style={styles.metaRow}>
+              <MapPin size={13} color={colors.textDim} />
+              <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
+            </View>
+          )}
+        </View>
+        <LinearGradient
+          colors={[catColor, 'transparent']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.bottomAccent}
+        />
+      </TouchableOpacity>
+    );
+  };
+
+  // Get chip category color for left accent
+  const getChipCatColor = (filterStr) => {
+    const cat = filterStr.split(' · ')[0];
+    return categoryColors[cat] || null;
+  };
 
   return (
     <TabScreenLayout style={styles.container}>
       <View style={styles.content}>
-      {/* Buscador con botón Clear */}
+      {/* Search bar */}
       <View style={styles.searchWrapper}>
-        <TextInput
-          style={styles.searchBar}
-          placeholder="Buscar eventos, venues o artistas"
-          placeholderTextColor="#ccc"
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity
-            style={styles.clearButton}
-            onPress={() => setSearchQuery('')}
-          >
-            <X color="#fff" size={18} />
-          </TouchableOpacity>
-        )}
-        
-        {/* Resultados de búsqueda (venues + events) - attached to search input */}
-        {searchQuery.length > 0 && (searchVenues.length > 0 || searchEvents.length > 0) && (
+        <GlassOverlay borderRadius={16} style={styles.searchGlass}>
+          <View style={styles.searchInner}>
+            <Search size={18} color={colors.textDim} style={{ marginRight: 10 }} />
+            <TextInput
+              style={styles.searchBar}
+              placeholder="Buscar eventos, venues o artistas"
+              placeholderTextColor={colors.textDim}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => { setSearchQuery(''); setShowDropdown(false); }}
+              >
+                <X color={colors.primary} size={18} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </GlassOverlay>
+
+        {/* Search results dropdown */}
+        {showDropdown && debouncedQuery.length > 0 && (venuesData.length > 0 || eventsApiData.length > 0) && (
+          <>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowDropdown(false)}
+          />
           <View style={styles.resultSection}>
             <ScrollView>
-              {searchEvents.length > 0 && (
+              {eventsApiData.length > 0 && (
                 <View>
                   <Text style={styles.resultTitle}>Próximos Eventos</Text>
-                  {searchEvents.map((e, i) => (
+                  {eventsApiData.slice(0, 10).map((e, i) => (
                     <TouchableOpacity
                       key={`ev-${i}`}
                       style={styles.venueCard}
@@ -379,21 +436,17 @@ export default function EventsScreen() {
                 </View>
               )}
 
-              {searchVenues.length > 0 && (
+              {venuesData.length > 0 && (
                 <View>
                   <Text style={styles.resultTitle}>Venues</Text>
-                  {searchVenues.map((v, i) => (
+                  {venuesData.slice(0, 10).map((v, i) => (
                     <TouchableOpacity
                       key={`venue-${i}`}
                       style={styles.venueCard}
                       onPress={() =>
                         navigation.navigate('VenueScreen', {
+                          venueId: v.id,
                           venueName: v.name,
-                          venueType: v.type,
-                          venueCity: v.city,
-                          coverImage: v.coverImage,
-                          profileImage: v.profileImage,
-                          menuPdfUrl: v.menuPdfUrl,
                         })
                       }
                     >
@@ -408,95 +461,52 @@ export default function EventsScreen() {
               )}
             </ScrollView>
           </View>
+          </>
         )}
       </View>
 
-      {/* Filtros con íconos */}
+      {/* Filter icons row */}
       <View style={styles.filtersRow}>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Fecha')} 
-          style={[
-            styles.filterButton, 
-            (selectedDateTag !== 'ALL') && styles.filterButtonActive
-          ]}
-        >
-          <Calendar color="#fff" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Música')} 
-          style={[
-            styles.filterButton,
-            (selectedCategories.has('Música') || Array.from(selectedTypes).some(key => key.startsWith('Música::'))) && styles.filterButtonActive
-          ]}
-        >
-          <Music color="#fff" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Teatro')} 
-          style={[
-            styles.filterButton,
-            (selectedCategories.has('Teatro') || Array.from(selectedTypes).some(key => key.startsWith('Teatro::'))) && styles.filterButtonActive
-          ]}
-        >
-          <Drama color="#fff" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Comedia')} 
-          style={[
-            styles.filterButton,
-            (selectedCategories.has('Comedia') || Array.from(selectedTypes).some(key => key.startsWith('Comedia::'))) && styles.filterButtonActive
-          ]}
-        >
-          <Laugh color="#fff" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Arte')} 
-          style={[
-            styles.filterButton,
-            (selectedCategories.has('Arte') || Array.from(selectedTypes).some(key => key.startsWith('Arte::'))) && styles.filterButtonActive
-          ]}
-        >
-          <Palette color="#fff" size={20} />
-        </TouchableOpacity>
-        <TouchableOpacity 
-          onPress={() => setActiveFilter('Cine')} 
-          style={[
-            styles.filterButton,
-            (selectedCategories.has('Cine') || Array.from(selectedTypes).some(key => key.startsWith('Cine::'))) && styles.filterButtonActive
-          ]}
-        >
-          <Clapperboard color="#fff" size={20} />
-        </TouchableOpacity>
+        {renderFilterButton('Fecha', Calendar)}
+        {renderFilterButton('Música', Music)}
+        {renderFilterButton('Teatro', Drama)}
+        {renderFilterButton('Comedia', Laugh)}
+        {renderFilterButton('Arte', Palette)}
+        {renderFilterButton('Cine', Clapperboard)}
       </View>
 
-      {/* Chips de filtros activos */}
+      {/* Active filter chips */}
       {selectedFilters.length > 0 && (
         <View style={styles.activeChipsRow}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-            {selectedFilters.map((f) => (
-              <View key={f} style={styles.chip}>
-                <Text style={styles.chipText}>{f}</Text>
-                <TouchableOpacity onPress={() => removeFilter(f)} style={styles.chipClose}>
-                  <X size={14} color="#fff" />
-                </TouchableOpacity>
-              </View>
-            ))}
+            {selectedFilters.map((f) => {
+              const catColor = getChipCatColor(f);
+              return (
+                <View key={f} style={styles.chip}>
+                  {catColor && <View style={[styles.chipAccent, { backgroundColor: catColor }]} />}
+                  <Text style={styles.chipText}>{f}</Text>
+                  <TouchableOpacity onPress={() => removeFilter(f)} style={styles.chipClose}>
+                    <X size={14} color={colors.primary} />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
             <TouchableOpacity onPress={clearAllFilters} style={[styles.chip, styles.clearAllChip]}>
-              <Text style={[styles.chipText, { fontWeight: '700' }]}>Limpiar todo</Text>
+              <Text style={[styles.chipText, { fontFamily: 'Outfit_600SemiBold' }]}>Limpiar todo</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
       )}
 
-      {/* Modal de opciones de filtro */}
+      {/* Filter options modal */}
       <Modal transparent visible={!!activeFilter} animationType="fade">
         <TouchableOpacity
           style={styles.modalBackground}
           activeOpacity={1}
           onPressOut={() => setActiveFilter(null)}
         >
-          <View style={styles.modalContainer}>
-            {/* Show "Clear" button inside modal */}
+          <GlassOverlay borderRadius={16} style={styles.modalContainer}>
+            {/* Clear button */}
             <TouchableOpacity
               onPress={clearActiveFilterCategory}
               style={styles.modalClearButton}
@@ -504,79 +514,100 @@ export default function EventsScreen() {
               <Text style={styles.modalClearButtonText}>Limpiar</Text>
             </TouchableOpacity>
 
-            {/* For Fecha: single select */}
-            {activeFilter === 'Fecha' && (FILTERS[activeFilter] || []).map((option) => (
-              <TouchableOpacity
-                key={option}
-                onPress={() => toggleDateTag(option)}
-                style={[
-                  styles.modalOption,
-                  selectedDateTag === option && styles.modalOptionSelected,
-                ]}
-              >
-                <Text style={styles.modalOptionText}>{option}</Text>
-              </TouchableOpacity>
-            ))}
+            {/* Fecha: single select */}
+            {activeFilter === 'Fecha' && (FILTERS[activeFilter] || []).map((option) => {
+              const selected = selectedDateTag === option;
+              return (
+                <TouchableOpacity
+                  key={option}
+                  onPress={() => toggleDateTag(option)}
+                >
+                  {selected ? (
+                    <LinearGradient
+                      colors={[colors.authGradientStart, colors.authGradientEnd]}
+                      style={styles.modalOption}
+                    >
+                      <Text style={styles.modalOptionText}>{option}</Text>
+                    </LinearGradient>
+                  ) : (
+                    <View style={styles.modalOption}>
+                      <Text style={styles.modalOptionText}>{option}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+              );
+            })}
 
-            {/* For categories: show category toggle + subcategories */}
+            {/* Category subcategories */}
             {activeFilter && activeFilter !== 'Fecha' && (() => {
               const subcats = SUBCATEGORIES[activeFilter];
               if (!subcats) return null;
 
               return (
                 <>
-                  {/* Category toggle button */}
-                  <TouchableOpacity
-                    onPress={() => toggleCategory(activeFilter)}
-                    style={[
-                      styles.modalOption,
-                      selectedCategories.has(activeFilter) && styles.modalOptionSelected,
-                      styles.modalCategoryOption,
-                    ]}
-                  >
-                    <Text style={styles.modalCategoryOptionText}>{activeFilter}</Text>
+                  {/* Category toggle */}
+                  <TouchableOpacity onPress={() => toggleCategory(activeFilter)}>
+                    {selectedCategories.has(activeFilter) ? (
+                      <LinearGradient
+                        colors={[colors.authGradientStart, colors.authGradientEnd]}
+                        style={[styles.modalOption, styles.modalCategoryOption]}
+                      >
+                        <Text style={styles.modalCategoryOptionText}>{activeFilter}</Text>
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.modalOption, styles.modalCategoryOption]}>
+                        <Text style={styles.modalCategoryOptionText}>{activeFilter}</Text>
+                      </View>
+                    )}
                   </TouchableOpacity>
 
                   {/* Subcategories */}
                   {subcats.map((option) => {
                     const typeKey = `${activeFilter}::${option}`;
+                    const selected = selectedTypes.has(typeKey);
                     return (
                       <TouchableOpacity
                         key={option}
                         onPress={() => toggleType(option)}
-                        style={[
-                          styles.modalOption,
-                          selectedTypes.has(typeKey) && styles.modalOptionSelected,
-                        ]}
                       >
-                        <Text style={styles.modalOptionText}>{option}</Text>
+                        {selected ? (
+                          <LinearGradient
+                            colors={[colors.authGradientStart, colors.authGradientEnd]}
+                            style={styles.modalOption}
+                          >
+                            <Text style={styles.modalOptionText}>{option}</Text>
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.modalOption}>
+                            <Text style={styles.modalOptionText}>{option}</Text>
+                          </View>
+                        )}
                       </TouchableOpacity>
                     );
                   })}
                 </>
               );
             })()}
-          </View>
+          </GlassOverlay>
         </TouchableOpacity>
       </Modal>
 
-
-      {/* Estado de carga */}
+      {/* Loading state */}
       {isLoading && (
-        <View style={styles.emptyState}>
+        <GlassOverlay borderRadius={12} style={styles.emptyState}>
           <Text style={styles.emptyTitle}>Cargando eventos…</Text>
-        </View>
+        </GlassOverlay>
       )}
 
-      {/* Estado vacío si no hay resultados */}
-      {!isLoading && filteredEvents.length === 0 && searchQuery.length === 0 && (
-        <View style={styles.emptyState}>
+      {/* Empty state */}
+      {!isLoading && filteredEvents.length === 0 && (
+        <GlassOverlay borderRadius={12} style={styles.emptyState}>
           <Text style={styles.emptyTitle}>No hay eventos desde hoy en adelante</Text>
           <Text style={styles.emptySubtitle}>Prueba quitando algunos filtros o busca de nuevo.</Text>
-        </View>
+        </GlassOverlay>
       )}
 
-      {/* Lista de eventos */}
+      {/* Event list */}
       <FlatList
         data={filteredEvents}
         renderItem={renderEvent}
@@ -592,73 +623,92 @@ export default function EventsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C003D',
+    backgroundColor: colors.bg,
     paddingHorizontal: 16,
     paddingTop: 10,
   },
   content: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
+
+  // Search
   searchWrapper: {
     position: 'relative',
     marginBottom: 0,
     zIndex: 10,
   },
+  searchGlass: {
+    paddingHorizontal: 14,
+    paddingVertical: 0,
+  },
+  searchInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   searchBar: {
-    backgroundColor: '#2C005F',
-    color: '#fff',
-    borderRadius: 8,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    flex: 1,
+    color: colors.text,
     fontSize: 16,
+    fontFamily: 'Outfit_400Regular',
+    paddingVertical: 12,
   },
   clearButton: {
-    position: 'absolute',
-    right: 12,
-    top: '50%',
-    transform: [{ translateY: -10 }],
+    padding: 4,
+    marginLeft: 6,
   },
+
+  // Filter buttons
   filtersRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 14,
     marginBottom: 12,
   },
   filterButton: {
-    backgroundColor: '#6A39FF',
-    borderRadius: 10,
-    padding: 10,
-  },
-  filterButtonActive: {
-    backgroundColor: '#8B5CF6',
-    borderWidth: 2,
-    borderColor: '#A78BFA',
+    backgroundColor: colors.glassLight,
+    borderRadius: 12,
+    padding: 11,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
 
-  // chips activos
+  // Active chips
   activeChipsRow: {
-    marginBottom: 8,
+    marginBottom: 10,
   },
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#6A39FF',
+    backgroundColor: colors.glassLight,
     borderRadius: 999,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     marginRight: 8,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    overflow: 'hidden',
+  },
+  chipAccent: {
+    width: 3,
+    height: '100%',
+    borderRadius: 2,
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
   },
   clearAllChip: {
-    backgroundColor: '#3E2670',
+    backgroundColor: colors.glassLight,
   },
   chipText: {
-    color: '#fff',
+    color: colors.text,
     fontSize: 13,
+    fontFamily: 'Outfit_500Medium',
     marginRight: 6,
   },
   chipClose: {
     padding: 2,
   },
 
-  // resultados de búsqueda flotantes - attached directly to search input
+  // Search results dropdown
   resultSection: {
     position: 'absolute',
     top: '100%',
@@ -666,73 +716,204 @@ const styles = StyleSheet.create({
     right: 0,
     marginTop: 4,
     zIndex: 20,
-    backgroundColor: '#2C005F',
-    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderRadius: 12,
     padding: 12,
     maxHeight: 280,
-    ...(Platform.OS === 'android'
-      ? { elevation: 8 }
-      : { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } }),
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    ...Platform.select({
+      android: { elevation: 8 },
+      ios: { shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 8, shadowOffset: { width: 0, height: 4 } },
+      web: { boxShadow: '0 4px 20px rgba(0,0,0,0.35)' },
+    }),
   },
-  resultTitle: { color: '#ccc', fontSize: 16, fontWeight: '600', marginBottom: 8, marginTop: 6 },
-  venueCard: { backgroundColor: '#3E2670', padding: 12, borderRadius: 10, marginBottom: 10 },
-  venueName: { color: '#fff', fontSize: 16, fontWeight: '600' },
-  venueType: { color: '#ccc', fontSize: 14, marginTop: 2 },
-
-  // tarjetas de evento (alineado a HomeScreen: título + fecha y venue en una misma línea)
-  eventCard: {
-    backgroundColor: '#2C005F',
+  resultTitle: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    marginBottom: 8,
+    marginTop: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  venueCard: {
+    backgroundColor: colors.glassLight,
+    padding: 12,
     borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+  },
+  venueName: {
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  venueType: {
+    color: colors.textDim,
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular',
+    marginTop: 2,
+  },
+
+  // Event cards
+  eventCard: {
+    backgroundColor: 'rgba(28, 10, 62, 0.82)',
+    borderRadius: 16,
     marginBottom: 16,
     overflow: 'hidden',
-    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 10,
+      },
+      android: { elevation: 6 },
+      web: { boxShadow: '0 4px 20px rgba(0,0,0,0.35)' },
+    }),
   },
-  image: { width: 100, height: 100 },
-  eventInfo: { flex: 1, padding: 10, justifyContent: 'center' },
-  eventTitle: { color: '#fff', fontSize: 16, fontWeight: '700' },
-  eventDate: { color: '#ccc', fontSize: 14, marginTop: 4 },
+  imageContainer: {
+    position: 'relative',
+  },
+  image: {
+    width: '100%',
+    height: 160,
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: 80,
+    backgroundColor: colors.card,
+  },
+  saveBtn: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#1A1A34',
+    borderWidth: 1.5,
+    borderColor: 'rgba(191, 160, 255, 0.35)',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  saveBtnActive: {
+    backgroundColor: '#2D1566',
+    borderColor: '#BFA0FF',
+  },
+  saveBtnText: {
+    color: '#fff',
+    fontSize: 12,
+    fontFamily: 'Outfit_500Medium',
+  },
+  saveBtnTextActive: {
+    color: '#BFA0FF',
+  },
+  badge: {
+    position: 'absolute',
+    top: 10,
+    left: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  badgeText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Outfit_500Medium',
+  },
+  eventInfo: {
+    padding: 12,
+  },
+  eventTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+    marginBottom: 6,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 3,
+    gap: 6,
+  },
+  metaText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular',
+    color: colors.textDim,
+  },
+  bottomAccent: {
+    height: 2,
+  },
 
-  // modal de opciones
+  // Modal
   modalBackground: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-start',
     paddingTop: 120,
     paddingHorizontal: 40,
   },
-  modalContainer: { backgroundColor: '#2C005F', borderRadius: 10, padding: 10 },
+  modalContainer: {
+    padding: 12,
+  },
   modalClearButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
-    borderRadius: 8,
-    backgroundColor: '#3E2670',
+    borderRadius: 10,
+    backgroundColor: colors.glassLight,
     marginBottom: 8,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
   },
-  modalClearButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
-  modalOption: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 8, marginBottom: 4 },
-  modalOptionSelected: { backgroundColor: '#6A39FF' },
-  modalOptionText: { color: '#fff', fontSize: 16 },
+  modalClearButtonText: {
+    color: colors.text,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  modalOption: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderRadius: 10,
+    marginBottom: 4,
+  },
+  modalOptionText: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: 'Outfit_500Medium',
+  },
   modalCategoryOption: {
-    backgroundColor: '#3E2670',
-    borderWidth: 2,
-    borderColor: '#6A39FF',
+    borderWidth: 1,
+    borderColor: colors.primary,
+    backgroundColor: colors.glassLight,
   },
-  modalCategoryOptionText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  modalCategoryOptionText: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: 'Outfit_700Bold',
+  },
 
-  // vacío
+  // Empty/loading
   emptyState: {
     alignItems: 'center',
     marginTop: 24,
+    padding: 20,
   },
   emptyTitle: {
-    color: '#fff',
-    fontWeight: '700',
+    color: colors.text,
+    fontFamily: 'Outfit_700Bold',
     fontSize: 16,
     marginBottom: 4,
   },
   emptySubtitle: {
-    color: '#ccc',
+    color: colors.textDim,
     fontSize: 14,
+    fontFamily: 'Outfit_400Regular',
   },
 });

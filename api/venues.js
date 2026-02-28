@@ -7,6 +7,11 @@ export async function fetchVenues({ skip = 0, limit = MAX_PER_PAGE } = {}) {
   return data;
 }
 
+export async function fetchVenueDetail(venueId) {
+  const { data } = await apiClient.get(`/venues/${venueId}/detail`);
+  return data;
+}
+
 export async function fetchAllVenues() {
   const results = [];
   let skip = 0;

@@ -116,6 +116,24 @@ export default function useMapInteractions({
       .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
   }, [eventsData]);
 
+  const getFilteredEventsForVenue = useCallback((venueName) => {
+    const vnLower = (venueName || '').toLowerCase();
+    return filteredEvents
+      .filter((e) => (e.venueName || '').toLowerCase() === vnLower)
+      .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf());
+  }, [filteredEvents]);
+
+  const handleVenueMarkerPress = useCallback((venueName, venueType, latlng) => {
+    const list = getFilteredEventsForVenue(venueName);
+    setSelectedVenue({ id: venueName, name: venueName, ...latlng });
+    setSelectedVenueMeta({ name: venueName, type: venueType });
+    setVenueEvents(list);
+    setVenueIndex(0);
+    setShowVenuePanel(true);
+    setShowPanel(false);
+    setSelectedEventPin(null);
+  }, [getFilteredEventsForVenue]);
+
   const focusVenueOnMap = useCallback((v) => {
     const latlng = getVenueLatLng(v);
     if (!latlng) return;
@@ -209,8 +227,12 @@ export default function useMapInteractions({
           setSelectedIndex(null);
           return;
         }
-        setSelectedIndex(0);
-        if (Platform.OS !== 'web') streetZoomNextRef.current = true;
+        // When filter changes produce multiple events, don't auto-zoom to the first one
+        if (filteredEvents.length > 1) {
+          setSelectedIndex(null);
+        } else {
+          setSelectedIndex(0);
+        }
         setTimeout(() => {
           if (flatListRef.current && filteredEvents.length > 0) {
             try { flatListRef.current.scrollToIndex({ index: 0, animated: false }); }
@@ -229,8 +251,13 @@ export default function useMapInteractions({
     setShowPanel(true);
     const shouldReset = selectedDaysChanged || selectedIndex == null || selectedIndex >= filteredEvents.length || (filteredEvents.length > 0 && selectedIndex < 0);
     if (shouldReset) {
-      setSelectedIndex(0);
-      streetZoomNextRef.current = true;
+      // When filter changes produce multiple events, don't auto-zoom to the first one
+      if (filteredEvents.length > 1) {
+        setSelectedIndex(null);
+      } else {
+        setSelectedIndex(0);
+        streetZoomNextRef.current = true;
+      }
       setTimeout(() => {
         if (flatListRef.current && filteredEvents.length > 0) {
           try { flatListRef.current.scrollToIndex({ index: 0, animated: false }); }
@@ -240,12 +267,13 @@ export default function useMapInteractions({
     }
   }, [filteredEvents, selectedDays, selectedDay]);
 
-  // Center map on selected event
+  // Center map on selected event (skip when venue panel is open)
   useEffect(() => {
     if (centerTimeoutRef.current) {
       clearTimeout(centerTimeoutRef.current);
       centerTimeoutRef.current = null;
     }
+    if (showVenuePanel) return;
     if (selectedIndex == null || selectedIndex < 0 || selectedIndex >= filteredEvents.length) return;
     const eventToCenter = filteredEvents[selectedIndex];
     if (!eventToCenter) return;
@@ -267,7 +295,7 @@ export default function useMapInteractions({
     return () => {
       if (centerTimeoutRef.current) { clearTimeout(centerTimeoutRef.current); centerTimeoutRef.current = null; }
     };
-  }, [selectedIndex, filteredEvents, centerMapOnEvent]);
+  }, [selectedIndex, filteredEvents, centerMapOnEvent, showVenuePanel]);
 
   return {
     selectedIndex, setSelectedIndex,
@@ -285,6 +313,8 @@ export default function useMapInteractions({
     animateMapToLatLng,
     centerMapOnEvent,
     handleMarkerPress,
+    getFilteredEventsForVenue,
+    handleVenueMarkerPress,
     focusVenueOnMap,
     focusEventOnMap,
     goToEventDetailClearingPins,

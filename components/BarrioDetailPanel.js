@@ -102,7 +102,7 @@ export default function BarrioDetailPanel({ barrio, visible, onClose }) {
       onClose(); // Close barrio panel first
       // Use setTimeout to ensure modal closes before navigation
       setTimeout(() => {
-        navigation.navigate('VenueScreen', { venueName: venue.name });
+        navigation.navigate('VenueScreen', { venueId: venue.id, venueName: venue.name });
       }, 100);
     } else {
       // Debug: log when venue is not found
