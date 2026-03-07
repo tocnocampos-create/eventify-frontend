@@ -98,16 +98,37 @@ function getDateRange(tag) {
   }
 }
 
-export default function EventsScreen() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [debouncedQuery, setDebouncedQuery] = useState('');
-  const [activeFilter, setActiveFilter] = useState(null);
-  const [selectedCategories, setSelectedCategories] = useState(new Set());
+export default function EventsScreen({ route }) {
+  const initialCategory = route?.params?.initialCategory;
+  const initialQuery = route?.params?.initialQuery;
+
+  const [searchQuery, setSearchQuery] = useState(initialQuery || '');
+  const [debouncedQuery, setDebouncedQuery] = useState(initialQuery || '');
+  const [activeFilter, setActiveFilter] = useState(initialCategory || null);
+  const [selectedCategories, setSelectedCategories] = useState(
+    initialCategory ? new Set([initialCategory]) : new Set()
+  );
   const [selectedTypes, setSelectedTypes] = useState(new Set());
   const [selectedDateTag, setSelectedDateTag] = useState('ALL');
   const [showDropdown, setShowDropdown] = useState(false);
+  const [paramsApplied, setParamsApplied] = useState(false);
 
   const navigation = useNavigation();
+
+  // Handle navigation params changes (when navigating back with new params)
+  useEffect(() => {
+    if (!route?.params) return;
+    if (paramsApplied) return;
+    if (route.params.initialCategory) {
+      setActiveFilter(route.params.initialCategory);
+      setSelectedCategories(new Set([route.params.initialCategory]));
+    }
+    if (route.params.initialQuery) {
+      setSearchQuery(route.params.initialQuery);
+      setDebouncedQuery(route.params.initialQuery);
+    }
+    setParamsApplied(true);
+  }, [route?.params]);
   const dragRef = useDragScroll();
   const { data: config } = useAppConfig();
   const badgeColors = getCategoryBadgeColors(config?.categories);
