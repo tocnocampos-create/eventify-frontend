@@ -9,7 +9,7 @@ import {
   Alert,
   Platform,
   Modal,
-  Dimensions,
+  useWindowDimensions,
   Animated,
 } from 'react-native';
 import TabScreenLayout from '../components/TabScreenLayout';
@@ -25,6 +25,7 @@ import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
 import ReviewModal from '../components/ReviewModal';
 import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
+import { GOOGLE_MAPS_API_KEY } from '../config/env';
 
 // Colores de pines
 const PIN_PURPLE = '#9F7BFF';
@@ -198,6 +199,7 @@ function LinkPill({ icon = 'link-outline', label, url, pack = 'ion' }) {
 }
 
 export default function EventDetailScreen() {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const navigation = useNavigation();
   const route = useRoute();
   const insets = useSafeAreaInsets();
@@ -316,12 +318,8 @@ export default function EventDetailScreen() {
   // Categories that should not show "Productos del Artista"
   const shouldHideProducts = isReviewCategory || event?.category === 'Comedia';
   
-  // Sample review data (can be replaced with actual event.review data)
-  const reviewData = event?.review || {
-    text: 'Una obra magistral que combina elementos visuales y narrativos de manera excepcional. La dirección y el elenco logran crear una experiencia inmersiva que no te puedes perder.',
-    url: 'https://example.com/review',
-    source: 'Crítica Especializada'
-  };
+  // Only show review if the event actually has review data from backend
+  const reviewData = event?.review || null;
 
   const hasProducts = products.length > 0 && !shouldHideProducts;
   const hasReview = isReviewCategory && reviewData?.text;
@@ -426,14 +424,14 @@ export default function EventDetailScreen() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.lightboxImageContainer}
+            style={[styles.lightboxImageContainer, { width: screenWidth, height: screenHeight }]}
             onPress={() => setLightboxVisible(false)}
             activeOpacity={1}
           >
             {event?.image && (
               <Image
                 source={{ uri: event.image }}
-                style={styles.lightboxImage}
+                style={{ width: screenWidth, height: screenHeight }}
                 resizeMode="contain"
               />
             )}
@@ -508,7 +506,7 @@ export default function EventDetailScreen() {
             {Platform.OS === 'web' ? (
               <WebMap
                 ref={webMapRef}
-                apiKey={"AIzaSyBJymkbeUvctbb43PnnTUZ9GQNo6IeEwd0"}
+                apiKey={GOOGLE_MAPS_API_KEY}
                 style={styles.smallMap}
                 initialRegion={initialRegion}
                 onRegionChange={handleRegionChange}
@@ -862,14 +860,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   lightboxImageContainer: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  lightboxImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
   },
 });
 

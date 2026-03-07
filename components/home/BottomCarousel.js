@@ -12,6 +12,7 @@ import EventCard from './EventCard';
 import colors from '../../theme/colors';
 import { TAB_BAR_HEIGHT } from '../FloatingTabBar';
 import { categoryColors, getCategoryBorderColor } from '../../utils/pinColors';
+import useDragScroll from '../../hooks/useDragScroll';
 
 const SPRING_CONFIG = { damping: 18, stiffness: 140, mass: 0.9 };
 
@@ -30,6 +31,7 @@ export default function BottomCarousel({
   onScroll,
   onMomentumScrollEnd,
 }) {
+  const dragRef = useDragScroll(flatListRef);
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 14;
 
@@ -95,7 +97,7 @@ export default function BottomCarousel({
       {/* ─── Cards or empty state ─── */}
       {hasEvents ? (
         <AnimatedFlatList
-          ref={flatListRef}
+          ref={dragRef}
           horizontal
           data={filteredEvents}
           renderItem={({ item, index }) => (

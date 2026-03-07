@@ -8,16 +8,13 @@ import {
   ScrollView,
   Image,
   FlatList,
-  Dimensions,
   Platform,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import venues from '../data/venues';
-
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+import useDragScroll from '../hooks/useDragScroll';
 
 /**
  * BarrioDetailPanel - A modal overlay panel that displays detailed information about a barrio
@@ -41,8 +38,10 @@ const SCREEN_HEIGHT = Dimensions.get('window').height;
  * @param {boolean} visible - Whether the panel is visible
  * @param {function} onClose - Callback to close the panel
  */
-export default function BarrioDetailPanel({ barrio, visible, onClose }) {
+export default function BarrioDetailPanel({ barrio, visible, onClose, venues = [] }) {
+  const { width: SCREEN_WIDTH } = useWindowDimensions();
   const navigation = useNavigation();
+  const dragRef = useDragScroll();
   const [photoIndex, setPhotoIndex] = useState(0);
   const fadeAnim = React.useRef(new Animated.Value(0)).current;
 
@@ -176,6 +175,7 @@ export default function BarrioDetailPanel({ barrio, visible, onClose }) {
           {photos.length > 0 ? (
             <View style={styles.photoGalleryContainer}>
               <FlatList
+                ref={dragRef}
                 data={photos}
                 horizontal
                 pagingEnabled
@@ -191,7 +191,7 @@ export default function BarrioDetailPanel({ barrio, visible, onClose }) {
                 renderItem={({ item }) => (
                   <Image
                     source={{ uri: item }}
-                    style={styles.photo}
+                    style={[styles.photo, { width: SCREEN_WIDTH - 40, ...(Platform.OS === 'web' && { width: Math.min(SCREEN_WIDTH - 40, 560) }) }]}
                     resizeMode="cover"
                   />
                 )}
@@ -328,7 +328,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1C0A3E', // Eventify dark purple background
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: SCREEN_HEIGHT * 0.85, // Cover 85% of screen height
+    maxHeight: '85%',
     zIndex: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -4 },
@@ -375,11 +375,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   photo: {
-    width: SCREEN_WIDTH - 40,
     height: 240,
-    ...(Platform.OS === 'web' && {
-      width: Math.min(SCREEN_WIDTH - 40, 560),
-    }),
   },
   photoPlaceholder: {
     backgroundColor: '#2B245C',

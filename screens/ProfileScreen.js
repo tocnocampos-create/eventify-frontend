@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
@@ -28,27 +27,35 @@ import InterestSelector from '../components/InterestSelector';
 import colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserInterests, useSetInterests } from '../hooks/useUserPreferences';
+import { useAppConfig, getCategoryColors, getCategoryIcons } from '../hooks/useAppConfig';
 
-const CATEGORY_COLORS = {
-  'Música': colors.pinMusica,
-  'Teatro': colors.pinTeatro,
-  'Comedia': colors.pinComedia,
-  'Arte': colors.pinArte,
-  'Cine': colors.pinCine,
-};
+const AVATAR_COLORS = [
+  '#E53935', '#D81B60', '#8E24AA', '#5E35B1',
+  '#3949AB', '#1E88E5', '#00ACC1', '#00897B',
+  '#43A047', '#7CB342', '#F4511E', '#6D4C41',
+];
 
-const CATEGORY_ICONS = {
-  'Música': 'musical-notes',
-  'Teatro': 'ticket',
-  'Comedia': 'happy',
-  'Arte': 'color-palette',
-  'Cine': 'film',
-};
+function getAvatarColor(name) {
+  if (!name) return AVATAR_COLORS[0];
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
+function getInitial(name) {
+  if (!name) return '?';
+  return name.trim().charAt(0).toUpperCase();
+}
 
 export default function ProfileScreen({ navigation }) {
   const { user, logout } = useAuth();
   const { data: interests = [] } = useUserInterests();
   const setInterestsMutation = useSetInterests();
+  const { data: config } = useAppConfig();
+  const CATEGORY_COLORS = getCategoryColors(config?.categories);
+  const CATEGORY_ICONS = getCategoryIcons(config?.categories);
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
   const [interestModalVisible, setInterestModalVisible] = useState(false);
 
@@ -81,10 +88,9 @@ export default function ProfileScreen({ navigation }) {
             end={{ x: 1, y: 1 }}
             style={styles.profileImageRing}
           >
-            <Image
-              source={require('../assets/profile-placeholder.png')}
-              style={styles.profileImage}
-            />
+            <View style={[styles.avatarCircle, { backgroundColor: getAvatarColor(user?.full_name) }]}>
+              <Text style={styles.avatarLetter}>{getInitial(user?.full_name)}</Text>
+            </View>
           </LinearGradient>
           <Text style={styles.name}>{user?.full_name || 'Usuario'}</Text>
           <Text style={styles.email}>{user?.email || ''}</Text>
@@ -219,10 +225,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  profileImage: {
+  avatarCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarLetter: {
+    fontSize: 48,
+    fontFamily: 'Outfit_700Bold',
+    color: '#FFFFFF',
   },
   name: {
     fontSize: 20,

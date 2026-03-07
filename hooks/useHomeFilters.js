@@ -1,13 +1,9 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import dayjs from 'dayjs';
 import { applyEventFilters } from '../utils/filtering.js';
-import { SUBCATEGORIES, normalizeCategory, normalizeEventType } from '../utils/filters.schema.js';
+import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES, normalizeCategory, normalizeEventType } from '../utils/filters.schema.js';
 import { getEventPrice, formatPrice } from '../utils/mapHelpers.js';
-
-const filters = {
-  Date: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
-  Category: ['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'],
-};
+import { useAppConfig, getCategoryNames, getSubcategories } from './useAppConfig.js';
 
 const mapSpanishToEnglishDateTag = (spanish) => {
   const mapping = { 'Ahora': 'Live', 'Hoy': 'Today', 'Esta semana': 'This Week', 'Este mes': 'This Month', 'ALL': 'ALL' };
@@ -27,25 +23,45 @@ const mapSpanishToEnglishCategory = (spanish) => {
   return esToEn[normalized] || normalized;
 };
 
-const ALL_TYPES = Array.from(new Set(Object.values(SUBCATEGORIES).flat()));
-
 export default function useHomeFilters(eventsData, searchQuery) {
+  const { data: config } = useAppConfig();
+  const configSubcategories = getSubcategories(config?.categories);
+  const SUBCATEGORIES = Object.keys(configSubcategories).length > 0 ? configSubcategories : FALLBACK_SUBCATEGORIES;
+  const categoryNames = getCategoryNames(config?.categories) || Object.keys(FALLBACK_SUBCATEGORIES);
+  const configMaxPrice = config?.max_price ?? 300000;
+
+  const filters = useMemo(() => ({
+    Date: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
+    Category: categoryNames,
+  }), [categoryNames]);
+
+  const ALL_TYPES = useMemo(() => Array.from(new Set(Object.values(SUBCATEGORIES).flat())), [SUBCATEGORIES]);
+
   const [selectedDateTag, setSelectedDateTag] = useState('ALL');
   const [selectedCategories, setSelectedCategories] = useState(new Set());
   const [selectedTypes, setSelectedTypes] = useState(new Set());
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedDays, setSelectedDays] = useState([]);
-  const [maxPrice, setMaxPrice] = useState(300000);
+  const [maxPrice, setMaxPrice] = useState(configMaxPrice);
   const [showPricePanel, setShowPricePanel] = useState(false);
   const [currentDate, setCurrentDate] = useState(dayjs());
   const [tempSelectedDays, setTempSelectedDays] = useState([]);
   const [showDayPicker, setShowDayPicker] = useState(false);
 
+  // Sync maxPrice with config when it loads (only if user hasn't changed it)
+  const maxPriceInitRef = useRef(true);
+  useEffect(() => {
+    if (maxPriceInitRef.current && configMaxPrice !== 300000) {
+      setMaxPrice(configMaxPrice);
+      maxPriceInitRef.current = false;
+    }
+  }, [configMaxPrice]);
+
   // Legacy single-select support
   const selectedCategory = selectedCategories.size > 0 ? Array.from(selectedCategories)[0] : 'ALL';
   const selectedType = selectedTypes.size > 0 ? Array.from(selectedTypes)[0] : 'ALL';
 
-  const hasPriceFilter = maxPrice < 300000;
+  const hasPriceFilter = maxPrice < configMaxPrice;
   const hasCategoryOrTypeFilters = selectedCategories.size > 0 || selectedTypes.size > 0 || hasPriceFilter;
   const hasSelectedCategory = selectedCategories.size > 0;
 
@@ -313,5 +329,9 @@ export default function useHomeFilters(eventsData, searchQuery) {
     openDayPicker, closeDayPicker, handleDayToggle, handleClearDays, handleApplyDays, handleCalendarApply,
     // Constants
     filters,
+    // Config-derived values
+    configMaxPrice,
+    priceStep: config?.price_step ?? 500,
+    currency: config?.currency ?? 'CLP',
   };
 }

@@ -1,15 +1,18 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import useDragScroll from '../../hooks/useDragScroll';
 import { X } from 'lucide-react-native';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
 import { getCategoryBorderColor } from '../../utils/pinColors';
 
 export default function FilterPills({ filters, onRemove, style }) {
+  const dragRef = useDragScroll();
   if (!filters || filters.length === 0) return null;
 
   return (
     <ScrollView
+      ref={dragRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={[styles.content, style]}

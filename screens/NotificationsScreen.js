@@ -11,6 +11,7 @@ import {
   Platform,
   ActivityIndicator,
 } from 'react-native';
+import useDragScroll from '../hooks/useDragScroll';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
@@ -26,18 +27,11 @@ import colors from '../theme/colors';
 import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
 import { useNotificationFeed } from '../hooks/useUserPreferences';
+import { useAppConfig, getCategoryBadgeColors } from '../hooks/useAppConfig';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
-
-const badgeColors = {
-  'Música': colors.badgeMusica,
-  'Teatro': colors.badgeTeatro,
-  'Comedia': colors.badgeComedia,
-  'Arte': colors.badgeArte,
-  'Cine': colors.badgeCine,
-};
 
 /** Transform a raw backend event to frontend shape for display */
 function toFrontendEvent(apiEvent) {
@@ -63,6 +57,9 @@ function formatEventDateTime(event) {
 }
 
 export default function NotificationScreen({ navigation }) {
+  const dragRef = useDragScroll();
+  const { data: config } = useAppConfig();
+  const badgeColors = getCategoryBadgeColors(config?.categories);
   const { data: feed, isLoading } = useNotificationFeed();
 
   const savedEvents = (feed?.saved_events || []).map(toFrontendEvent);
@@ -216,6 +213,7 @@ export default function NotificationScreen({ navigation }) {
                 <ChevronRight size={14} color={colors.textDim} />
               </View>
               <FlatList
+                ref={dragRef}
                 horizontal
                 data={venueEvents}
                 renderItem={renderHorizontalCard}

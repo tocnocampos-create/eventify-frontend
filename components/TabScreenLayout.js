@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, Platform } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TAB_BAR_HEIGHT } from './FloatingTabBar';
 
@@ -16,6 +16,16 @@ export default function TabScreenLayout({ children, style, edges = ['top'] }) {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1 },
-  inner: { flex: 1, paddingBottom: TAB_BAR_HEIGHT + 24 },
+  root: {
+    flex: 1,
+    ...(Platform.OS === 'web' && {
+      maxWidth: 600,
+      width: '100%',
+      marginHorizontal: 'auto',
+    }),
+  },
+  inner: {
+    flex: 1,
+    paddingBottom: TAB_BAR_HEIGHT + 24,
+  },
 });

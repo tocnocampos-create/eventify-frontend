@@ -1,14 +1,13 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, TextInput, Modal, StyleSheet,
-  Dimensions, Animated, Platform, ActivityIndicator, Keyboard,
+  Animated, Platform, ActivityIndicator, Keyboard, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
 import { useCreateReview } from '../hooks/useCreateReview';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const STAR_SIZE = 36;
 
 export default function ReviewModal({
@@ -19,6 +18,7 @@ export default function ReviewModal({
   venueName,
   eventName,
 }) {
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const [rating, setRating] = useState(0);
   const [comment, setComment] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -171,6 +171,11 @@ const st = StyleSheet.create({
     borderTopRightRadius: 22,
     overflow: 'hidden',
     paddingBottom: Platform.OS === 'ios' ? 34 : 16,
+    ...(Platform.OS === 'web' && {
+      maxWidth: 600,
+      width: '100%',
+      marginHorizontal: 'auto',
+    }),
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 2 },
   handle: {

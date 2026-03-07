@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
-  View, Text, StyleSheet, Animated, Dimensions, Platform, Keyboard, Pressable,
+  View, Text, StyleSheet, Animated, Platform, Keyboard, Pressable, useWindowDimensions,
 } from 'react-native';
 import WebMap from '../components/WebMap';
 import { MapView as NativeMapView, Marker as NativeMarker, Circle as NativeCircle, Polygon as NativePolygon } from '../components/NativeMap';
@@ -18,6 +18,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // Extracted hooks
 import useHomeFilters from '../hooks/useHomeFilters';
 import useMapInteractions from '../hooks/useMapInteractions';
+import { GOOGLE_MAPS_API_KEY } from '../config/env';
 
 // Extracted utils
 import {
@@ -42,9 +43,8 @@ import DayPickerModal from '../components/home/DayPickerModal';
 dayjs.extend(isoWeek);
 dayjs.locale('es');
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
-
 export default function HomeScreen() {
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
 
@@ -291,7 +291,7 @@ export default function HomeScreen() {
   const pulseScale = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.7, 2.2] });
   const pulseOpacity = pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0] });
   const resultsTop = showFilters ? 250 : 180;
-  const apiKey = "AIzaSyBJymkbeUvctbb43PnnTUZ9GQNo6IeEwd0";
+  const apiKey = GOOGLE_MAPS_API_KEY;
 
   if (isDataLoading) {
     return (
@@ -484,6 +484,8 @@ export default function HomeScreen() {
           onToggleFilter={handleToggleFilter}
           onSetMaxPrice={filterState.setMaxPrice}
           onTogglePricePanel={() => filterState.setShowPricePanel(prev => !prev)}
+          configMaxPrice={filterState.configMaxPrice}
+          priceStep={filterState.priceStep}
           style={{ position: 'absolute', top: insets.top + 106, left: 15, right: 15, zIndex: 11 }}
         />
       )}
@@ -537,6 +539,7 @@ export default function HomeScreen() {
         barrio={selectedBarrio}
         visible={!!selectedBarrio}
         onClose={() => setSelectedBarrio(null)}
+        venues={venues}
       />
     </View>
   );

@@ -17,6 +17,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
 import { useSearch } from '../hooks/useSearch';
+import useDragScroll from '../hooks/useDragScroll';
 import { useNavigation } from '@react-navigation/native';
 import {
   Calendar,
@@ -35,14 +36,15 @@ import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences
 import { formatEventDateTime } from '../utils/mapHelpers';
 import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
+import { useAppConfig, getCategoryBadgeColors, getSubcategories, getCategoryNames } from '../hooks/useAppConfig';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
 
-// ✅ utilidades de filtros (solo lógica)
+// utilidades de filtros (solo logica)
 import { isLive } from '../utils/filtering.js';
-import { SUBCATEGORIES, normalizeEventType } from '../utils/filters.schema.js';
+import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES, normalizeEventType } from '../utils/filters.schema.js';
 
 function SaveButton({ eventId }) {
   const { data: isSaved } = useIsEventSaved(eventId);
@@ -67,22 +69,13 @@ function SaveButton({ eventId }) {
   );
 }
 
-const FILTERS = {
-  Fecha: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
-  Música: SUBCATEGORIES['Música'],
-  Teatro: SUBCATEGORIES['Teatro'],
-  Comedia: SUBCATEGORIES['Comedia'],
-  Arte: SUBCATEGORIES['Arte'],
-  Cine: SUBCATEGORIES['Cine'],
-};
-
-const badgeColors = {
-  'Música': colors.badgeMusica,
-  'Teatro': colors.badgeTeatro,
-  'Comedia': colors.badgeComedia,
-  'Arte': colors.badgeArte,
-  'Cine': colors.badgeCine,
-};
+function buildFilters(subcategories) {
+  const subs = subcategories || FALLBACK_SUBCATEGORIES;
+  return {
+    Fecha: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
+    ...Object.keys(subs).reduce((acc, cat) => { acc[cat] = subs[cat]; return acc; }, {}),
+  };
+}
 
 
 // Helper: compute date range from Spanish date tag
@@ -115,6 +108,13 @@ export default function EventsScreen() {
   const [showDropdown, setShowDropdown] = useState(false);
 
   const navigation = useNavigation();
+  const dragRef = useDragScroll();
+  const { data: config } = useAppConfig();
+  const badgeColors = getCategoryBadgeColors(config?.categories);
+  const configSubcategories = getSubcategories(config?.categories);
+  const SUBCATEGORIES = Object.keys(configSubcategories).length > 0 ? configSubcategories : FALLBACK_SUBCATEGORIES;
+  const FILTERS = buildFilters(SUBCATEGORIES);
+  const categoryNames = getCategoryNames(config?.categories) || Object.keys(FALLBACK_SUBCATEGORIES);
 
   // Debounce search query (300ms)
   const debounceRef = useRef(null);
@@ -199,7 +199,7 @@ export default function EventsScreen() {
         next.delete(cat);
         return next;
       });
-    } else if (['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'].includes(filter)) {
+    } else if (categoryNames.includes(filter)) {
       setSelectedCategories((prev) => {
         const next = new Set(prev);
         next.delete(filter);
@@ -478,7 +478,7 @@ export default function EventsScreen() {
       {/* Active filter chips */}
       {selectedFilters.length > 0 && (
         <View style={styles.activeChipsRow}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ScrollView ref={dragRef} horizontal showsHorizontalScrollIndicator={false}>
             {selectedFilters.map((f) => {
               const catColor = getChipCatColor(f);
               return (
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 10,
   },
-  content: { flex: 1, width: '100%', maxWidth: 1200, alignSelf: 'center' },
+  content: { flex: 1, width: '100%' },
 
   // Search
   searchWrapper: {

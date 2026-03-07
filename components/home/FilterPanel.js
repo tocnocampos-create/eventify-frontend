@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronUp, ChevronDown } from 'lucide-react-native';
-import Slider from '@react-native-community/slider';
+import Slider from '../CrossPlatformSlider';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
@@ -21,6 +21,8 @@ export default function FilterPanel({
   onToggleFilter,
   onSetMaxPrice,
   onTogglePricePanel,
+  configMaxPrice = 300000,
+  priceStep = 500,
   style,
 }) {
   return (
@@ -137,8 +139,8 @@ export default function FilterPanel({
               <View style={{ paddingHorizontal: 10 }}>
                 <Slider
                   minimumValue={0}
-                  maximumValue={300000}
-                  step={500}
+                  maximumValue={configMaxPrice}
+                  step={priceStep}
                   value={maxPrice}
                   onValueChange={onSetMaxPrice}
                   minimumTrackTintColor={colors.authGradientStart}
@@ -148,13 +150,13 @@ export default function FilterPanel({
               </View>
               <View style={styles.priceRange}>
                 <Text style={styles.priceRangeText}>Gratis</Text>
-                <Text style={styles.priceRangeText}>{formatPrice(300000)}</Text>
+                <Text style={styles.priceRangeText}>{formatPrice(configMaxPrice)}</Text>
               </View>
               <View style={styles.priceActions}>
                 <TouchableOpacity style={styles.priceActionBtn} onPress={() => onSetMaxPrice(0)}>
                   <Text style={styles.priceActionText}>Solo Gratis</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.priceActionBtn} onPress={() => onSetMaxPrice(300000)}>
+                <TouchableOpacity style={styles.priceActionBtn} onPress={() => onSetMaxPrice(configMaxPrice)}>
                   <Text style={styles.priceActionText}>Restablecer</Text>
                 </TouchableOpacity>
               </View>

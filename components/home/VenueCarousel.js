@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, FlatList, Animated, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, FlatList, Animated, StyleSheet, useWindowDimensions } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import EventCard from './EventCard';
 import colors from '../../theme/colors';
 import { emojiForVenue } from '../../utils/pinColors';
-
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+import useDragScroll from '../../hooks/useDragScroll';
 
 export default function VenueCarousel({
   venueEvents,
@@ -17,6 +16,8 @@ export default function VenueCarousel({
   onCardPress,
   onMomentumScrollEnd,
 }) {
+  const dragRef = useDragScroll();
+  const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const panelHeight = SCREEN_HEIGHT * 0.32;
   const venueName = selectedVenueMeta
     ? `${emojiForVenue(selectedVenueMeta.type)} ${selectedVenueMeta.name}`
@@ -45,6 +46,7 @@ export default function VenueCarousel({
         </View>
 
         <FlatList
+          ref={dragRef}
           horizontal
           data={venueEvents}
           keyExtractor={(item) => item.id.toString()}

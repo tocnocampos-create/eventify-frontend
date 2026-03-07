@@ -8,8 +8,8 @@ import {
   TouchableOpacity,
   ScrollView,
   Modal,
-  Dimensions,
   ActivityIndicator,
+  useWindowDimensions,
 } from 'react-native';
 import TabScreenLayout from '../components/TabScreenLayout';
 import { useRoute, useNavigation } from '@react-navigation/native';
@@ -23,9 +23,8 @@ dayjs.locale('es');
 import { useVenueDetail } from '../hooks/useVenueDetail';
 import { normalizeVenueType } from '../utils/venueTypes';
 import ReviewModal from '../components/ReviewModal';
+import useDragScroll from '../hooks/useDragScroll';
 import { useIsFollowingVenue, useToggleFollowVenue } from '../hooks/useUserPreferences';
-
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const defaultCover = require('../assets/venue-default-cover.png');
 const defaultProfile = require('../assets/venue-default-profile.png');
@@ -47,6 +46,7 @@ function Stars({ rating = 0 }) {
 }
 
 export default function VenueScreen() {
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
@@ -61,6 +61,8 @@ export default function VenueScreen() {
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const galleryRef = useRef(null);
+  const dragRefGallery = useDragScroll(galleryRef);
+  const dragRefPast = useDragScroll();
 
   const venue = data?.venue;
   const upcomingEvents = data?.upcomingEvents || [];
@@ -228,9 +230,9 @@ export default function VenueScreen() {
     <TouchableOpacity
       activeOpacity={0.9}
       onPress={() => openLightbox(index)}
-      style={styles.imageItem}
+      style={[styles.imageItem, { width: SCREEN_WIDTH }]}
     >
-      <Image source={getImageSource(item)} style={styles.coverImage} resizeMode="cover" />
+      <Image source={getImageSource(item)} style={[styles.coverImage, { width: SCREEN_WIDTH }]} resizeMode="cover" />
     </TouchableOpacity>
   );
 
@@ -243,7 +245,7 @@ export default function VenueScreen() {
         {/* Galería de imágenes horizontal */}
         <View style={styles.imageGalleryContainer}>
           <FlatList
-            ref={galleryRef}
+            ref={dragRefGallery}
             data={venueImages}
             renderItem={renderImageItem}
             keyExtractor={(item, index) => `venue-image-${index}`}
@@ -369,6 +371,7 @@ export default function VenueScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Eventos pasados</Text>
           <FlatList
+            ref={dragRefPast}
             data={pastEvents}
             renderItem={renderPastEventCard}
             keyExtractor={(item) => item.id.toString() + '-past'}
@@ -419,10 +422,10 @@ export default function VenueScreen() {
             <Ionicons name="close" size={32} color="#fff" />
           </TouchableOpacity>
 
-          <View style={styles.lightboxImageContainer}>
+          <View style={[styles.lightboxImageContainer, { width: SCREEN_WIDTH, height: SCREEN_HEIGHT }]}>
             <Image
               source={getImageSource(venueImages[currentImageIndex])}
-              style={styles.lightboxImage}
+              style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
               resizeMode="contain"
             />
           </View>
@@ -488,11 +491,9 @@ const styles = StyleSheet.create({
     height: 200,
   },
   coverImage: {
-    width: SCREEN_WIDTH,
     height: 200,
   },
   imageItem: {
-    width: SCREEN_WIDTH,
   },
   backButton: {
     position: 'absolute',
@@ -714,14 +715,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   lightboxImageContainer: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  lightboxImage: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
   },
   lightboxNavButton: {
     position: 'absolute',

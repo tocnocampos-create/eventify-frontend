@@ -13,6 +13,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import useDragScroll from '../hooks/useDragScroll';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
@@ -34,19 +35,31 @@ import {
 import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import dayjs from 'dayjs';
 import { useVenues, useEvents } from '../hooks/useMapData';
-import Slider from '@react-native-community/slider';
+import Slider from '../components/CrossPlatformSlider';
 import GooglePlacesInput from '../components/GooglePlacesInput';
 import colors from '../theme/colors';
 import { formatEventDateTime } from '../utils/mapHelpers';
 import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
+import { useAppConfig, getCategoryBadgeColors } from '../hooks/useAppConfig';
 
-const badgeColors = {
-  'Música': colors.badgeMusica,
-  'Teatro': colors.badgeTeatro,
-  'Comedia': colors.badgeComedia,
-  'Arte': colors.badgeArte,
-  'Cine': colors.badgeCine,
+// Local fallback images for search categories (keyed by category key)
+const CATEGORY_IMAGE_MAP = {
+  'Jazz': require('../assets/categories/jazz.png'),
+  'Comedia': require('../assets/categories/comedy.png'),
+  'Nacional': require('../assets/categories/nacional.png'),
+  'Teatro': require('../assets/categories/theater.png'),
+  'Vida Nocturna': require('../assets/categories/nightlife.png'),
+  'Galerías ': require('../assets/categories/art.png'),
+  'Barrios': require('../assets/categories/barrios.png'),
+  'Festivales': require('../assets/categories/festivals.png'),
+  'Cine': require('../assets/categories/cinema.png'),
+  'Museos': require('../assets/categories/museos.png'),
+  'Al aire libre': require('../assets/categories/ecofriendly.png'),
+  'Sunsets': require('../assets/categories/sunsets.png'),
+  'Familiar': require('../assets/categories/familiar.png'),
+  'Ferias': require('../assets/categories/ferias.png'),
+  'City Tour': require('../assets/categories/ciudad.png'),
 };
 
 export default function SearchScreen() {
@@ -68,15 +81,18 @@ export default function SearchScreen() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
 
   const navigation = useNavigation();
+  const dragRefTrending = useDragScroll();
+  const dragRefVenues = useDragScroll();
+  const dragRefCategories = useDragScroll();
+  const { data: config } = useAppConfig();
+  const badgeColors = getCategoryBadgeColors(config?.categories);
+  const availableCities = config?.available_cities || ['Santiago'];
 
   const { data: venuesData, isLoading: venuesLoading } = useVenues();
   const { data: eventsData, isLoading: eventsLoading } = useEvents(venuesData);
   const allVenues = venuesData || [];
   const allEvents = eventsData || [];
   const isLoading = venuesLoading || eventsLoading;
-
-  // Available cities (ready to expand)
-  const availableCities = ['Santiago'];
 
   useEffect(() => {
     (async () => {
@@ -142,24 +158,17 @@ export default function SearchScreen() {
     return eventDate.isSame(selectedDay) && isNotPast;
   }), [allEvents, selectedDate]);
 
-  // === Categories con imágenes (agregadas Ecofriendly y Festivals) ===
-  const categoryItems = [
-    { key: 'Jazz', image: require('../assets/categories/jazz.png') },
-    { key: 'Comedia', image: require('../assets/categories/comedy.png') },
-    { key: 'Nacional', image: require('../assets/categories/nacional.png') },
-    { key: 'Teatro', image: require('../assets/categories/theater.png') },
-    { key: 'Vida Nocturna', image: require('../assets/categories/nightlife.png') },
-    { key: 'Galerías ', image: require('../assets/categories/art.png') },
-    { key: 'Barrios', image: require('../assets/categories/barrios.png') },
-    { key: 'Festivales', image: require('../assets/categories/festivals.png') },
-    { key: 'Cine', image: require('../assets/categories/cinema.png') },
-    { key: 'Museos', image: require('../assets/categories/museos.png') },
-    { key: 'Al aire libre', image: require('../assets/categories/ecofriendly.png') },
-    { key: 'Sunsets', image: require('../assets/categories/sunsets.png') },
-    { key: 'Familiar', image: require('../assets/categories/familiar.png') },
-    { key: 'Ferias', image: require('../assets/categories/ferias.png') },
-    { key: 'City Tour', image: require('../assets/categories/ciudad.png') },
-  ];
+  // Categories with images: use config search_categories with local fallback images
+  const categoryItems = useMemo(() => {
+    if (config?.search_categories) {
+      return config.search_categories.map(sc => ({
+        key: sc.key,
+        image: sc.image_url ? { uri: sc.image_url } : (CATEGORY_IMAGE_MAP[sc.key] || null),
+      })).filter(c => c.image !== null);
+    }
+    // Fallback to hardcoded list
+    return Object.entries(CATEGORY_IMAGE_MAP).map(([key, image]) => ({ key, image }));
+  }, [config?.search_categories]);
 
   // Helper: agrupa en pares para apilar de a dos
   const chunkInPairs = (arr) => {
@@ -168,7 +177,7 @@ export default function SearchScreen() {
     return out;
   };
 
-  const recommended = [
+  const recommended = config?.recommended_searches || [
     'Salas de Concierto',
     'Museos en un día',
     'Barrio Italia',
@@ -321,6 +330,7 @@ export default function SearchScreen() {
           {/* Trending Events */}
           <Text style={styles.sectionTitle}>Tendencias en {city}</Text>
           <FlatList
+            ref={dragRefTrending}
             horizontal
             data={trendingEvents}
             keyExtractor={(item) => item.id.toString()}
@@ -380,6 +390,7 @@ export default function SearchScreen() {
             <>
               <Text style={styles.sectionTitle}>Venues en {city}</Text>
               <FlatList
+                ref={dragRefVenues}
                 horizontal
                 data={allVenues.filter((v) => v.city === city)}
                 keyExtractor={(item, index) => index.toString()}
@@ -417,6 +428,7 @@ export default function SearchScreen() {
           {/* Categories */}
           <Text style={styles.sectionTitle}>Categorías</Text>
           <FlatList
+            ref={dragRefCategories}
             data={chunkInPairs(categoryItems)}
             keyExtractor={(_, idx) => `col-${idx}`}
             horizontal
@@ -548,7 +560,7 @@ export default function SearchScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.bg, position: 'relative' },
   scrollView: { flex: 1, paddingTop: 10 },
-  content: { width: '100%', maxWidth: 1200, alignSelf: 'center' },
+  content: { width: '100%' },
 
   // Explore button
   explorarButton: {

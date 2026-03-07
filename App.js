@@ -89,7 +89,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarLabel: 'Eventos' }} />
-      <Tab.Screen name="Search" component={SearchStack} options={{ tabBarButton: () => null, tabBarLabel: 'Explora' }} />
+      <Tab.Screen name="Search" component={SearchStack} options={{ tabBarLabel: 'Explora' }} />
       <Tab.Screen name="Notifications" component={NotificationsStack} options={{ tabBarLabel: 'Notificaciones' }} />
       <Tab.Screen name="Profile" component={ProfileStack} options={{ tabBarLabel: 'Perfil' }} />
     </Tab.Navigator>

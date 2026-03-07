@@ -8,27 +8,17 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import colors from '../theme/colors';
-import { SUBCATEGORIES } from '../utils/filters.schema';
-
-const CATEGORIES = ['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'];
-
-const CATEGORY_ICONS = {
-  'Música': 'musical-notes',
-  'Teatro': 'ticket',
-  'Comedia': 'happy',
-  'Arte': 'color-palette',
-  'Cine': 'film',
-};
-
-const CATEGORY_COLORS = {
-  'Música': colors.pinMusica,
-  'Teatro': colors.pinTeatro,
-  'Comedia': colors.pinComedia,
-  'Arte': colors.pinArte,
-  'Cine': colors.pinCine,
-};
+import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES } from '../utils/filters.schema';
+import { useAppConfig, getCategoryColors, getCategoryIcons, getCategoryNames, getSubcategories } from '../hooks/useAppConfig';
 
 export default function InterestSelector({ initialInterests = [], onSave, isLoading = false }) {
+  const { data: config } = useAppConfig();
+  const CATEGORIES = getCategoryNames(config?.categories) || ['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'];
+  const CATEGORY_ICONS = getCategoryIcons(config?.categories);
+  const CATEGORY_COLORS = getCategoryColors(config?.categories);
+  const configSubcategories = getSubcategories(config?.categories);
+  const SUBCATEGORIES = Object.keys(configSubcategories).length > 0 ? configSubcategories : FALLBACK_SUBCATEGORIES;
+
   // State: { category: Set of subtypes } — empty Set means whole category
   const [selected, setSelected] = useState(() => {
     const map = {};

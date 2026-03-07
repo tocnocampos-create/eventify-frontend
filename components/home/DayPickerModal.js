@@ -1,16 +1,15 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet,
-  Dimensions, Animated, Platform,
+  Animated, Platform, useWindowDimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { X } from 'lucide-react-native';
 import colors from '../../theme/colors';
+import useDragScroll from '../../hooks/useDragScroll';
 import dayjs from 'dayjs';
 
-const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CALENDAR_PAD = 20;
-const CELL = (SCREEN_WIDTH - CALENDAR_PAD * 2) / 7;
 const DAYS_HEADER = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
 const RANGE_BG = 'rgba(155, 93, 229, 0.12)';
 const MONTHS_COUNT = 12;
@@ -57,19 +56,19 @@ function resolveQuick(id) {
   }
 }
 
-function estimateMonthY(months, targetKey) {
+function estimateMonthY(months, targetKey, cellSize) {
   let y = 0;
   for (const m of months) {
     if (m.key === targetKey) break;
-    y += 20 + 40 + m.weeks.length * CELL;
+    y += 20 + 40 + m.weeks.length * cellSize;
   }
   return y;
 }
 
 /* ── DayCell ──────────────────────────────────────────────── */
 
-function DayCell({ day, monthKey, start, end, onPress }) {
-  if (!day) return <View style={{ width: CELL, height: CELL }} />;
+function DayCell({ day, monthKey, start, end, onPress, cellSize }) {
+  if (!day) return <View style={{ width: cellSize, height: cellSize }} />;
 
   const dateStr = `${monthKey}-${String(day).padStart(2, '0')}`;
   const todayStr = dayjs().format('YYYY-MM-DD');
@@ -81,34 +80,34 @@ function DayCell({ day, monthKey, start, end, onPress }) {
   const isSelected = isStart || isEnd;
   const isInRange = hasRange && dateStr > start && dateStr < end;
 
-  const sz = CELL * 0.76;
+  const sz = cellSize * 0.76;
   const stripH = sz;
-  const stripY = (CELL - stripH) / 2;
+  const stripY = (cellSize - stripH) / 2;
 
   return (
     <TouchableOpacity
       onPress={() => !isPast && onPress(dateStr)}
       disabled={isPast}
       activeOpacity={0.5}
-      style={{ width: CELL, height: CELL, alignItems: 'center', justifyContent: 'center' }}
+      style={{ width: cellSize, height: cellSize, alignItems: 'center', justifyContent: 'center' }}
     >
       {/* range strips */}
       {isStart && hasRange && (
         <View style={{
           position: 'absolute', top: stripY, height: stripH,
-          left: CELL / 2, width: CELL / 2, backgroundColor: RANGE_BG,
+          left: cellSize / 2, width: cellSize / 2, backgroundColor: RANGE_BG,
         }} />
       )}
       {isEnd && hasRange && (
         <View style={{
           position: 'absolute', top: stripY, height: stripH,
-          left: 0, width: CELL / 2, backgroundColor: RANGE_BG,
+          left: 0, width: cellSize / 2, backgroundColor: RANGE_BG,
         }} />
       )}
       {isInRange && (
         <View style={{
           position: 'absolute', top: stripY, height: stripH,
-          left: 0, width: CELL, backgroundColor: RANGE_BG,
+          left: 0, width: cellSize, backgroundColor: RANGE_BG,
         }} />
       )}
 
@@ -145,7 +144,7 @@ function DayCell({ day, monthKey, start, end, onPress }) {
 
 /* ── MonthGrid ────────────────────────────────────────────── */
 
-function MonthGrid({ month, start, end, onDayPress }) {
+function MonthGrid({ month, start, end, onDayPress, cellSize }) {
   return (
     <View style={st.monthWrap}>
       <Text style={st.monthLabel}>{month.label}</Text>
@@ -159,6 +158,7 @@ function MonthGrid({ month, start, end, onDayPress }) {
               start={start}
               end={end}
               onPress={onDayPress}
+              cellSize={cellSize}
             />
           ))}
         </View>
@@ -183,6 +183,11 @@ export default function DayPickerModal({
   onClose,
   onApply,
 }) {
+  const dragRef = useDragScroll();
+  const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = useWindowDimensions();
+  const effectiveWidth = Platform.OS === 'web' ? Math.min(SCREEN_WIDTH, 600) : SCREEN_WIDTH;
+  const CELL = (effectiveWidth - CALENDAR_PAD * 2) / 7;
+
   const [start, setStart] = useState(null);
   const [end, setEnd] = useState(null);
   const [quickId, setQuickId] = useState(null);
@@ -219,7 +224,7 @@ export default function DayPickerModal({
     const targetMonth = targetDate.substring(0, 7);
 
     setTimeout(() => {
-      const y = estimateMonthY(months, targetMonth);
+      const y = estimateMonthY(months, targetMonth, CELL);
       scrollRef.current?.scrollTo({ y, animated: false });
     }, 150);
   }, [visible]);
@@ -325,6 +330,7 @@ export default function DayPickerModal({
 
         {/* quick pills */}
         <ScrollView
+          ref={dragRef}
           horizontal
           showsHorizontalScrollIndicator={false}
           style={st.pillScroll}
@@ -363,6 +369,7 @@ export default function DayPickerModal({
               start={start}
               end={end}
               onDayPress={handleDayPress}
+              cellSize={CELL}
             />
           ))}
           <View style={{ height: 20 }} />
@@ -399,10 +406,15 @@ const st = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    maxHeight: SCREEN_HEIGHT * 0.88,
+    maxHeight: '88%',
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     overflow: 'hidden',
+    ...(Platform.OS === 'web' && {
+      maxWidth: 600,
+      width: '100%',
+      marginHorizontal: 'auto',
+    }),
   },
   handleWrap: { alignItems: 'center', paddingTop: 10, paddingBottom: 2 },
   handle: {

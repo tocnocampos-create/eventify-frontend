@@ -5,6 +5,7 @@ function stripAccents(value) {
   return value.normalize('NFD').replace(ACCENT_MARKS_REGEX, '');
 }
 
+// Hardcoded fallback — backend /config endpoint is the source of truth
 export const VENUE_TYPES = Object.freeze([
   'Bar',
   'Sala de Concierto',
@@ -16,6 +17,18 @@ export const VENUE_TYPES = Object.freeze([
   'Galería',
   'Cine',
 ]);
+
+/**
+ * Get venue types from backend config, falling back to hardcoded VENUE_TYPES.
+ * @param {Array|undefined} configVenueTypes - venue_types array from /config endpoint
+ * @returns {Array} venue types array
+ */
+export function getVenueTypesFromConfig(configVenueTypes) {
+  if (configVenueTypes && Array.isArray(configVenueTypes) && configVenueTypes.length > 0) {
+    return configVenueTypes;
+  }
+  return VENUE_TYPES;
+}
 
 export const VENUE_TYPE_SLUG_MAP = Object.freeze(
   VENUE_TYPES.reduce((acc, label) => {
