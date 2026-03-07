@@ -8,6 +8,9 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
 
 import queryClient from './api/queryClient';
+import injectWebScrollbar from './utils/injectWebScrollbar';
+
+injectWebScrollbar();
 import FloatingTabBar from './components/FloatingTabBar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 
