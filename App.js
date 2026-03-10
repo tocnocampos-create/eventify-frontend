@@ -1,10 +1,21 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { ActivityIndicator, View, StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Ionicons, MaterialCommunityIcons, Feather } from '@expo/vector-icons';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+
+import queryClient from './api/queryClient';
+import injectWebScrollbar from './utils/injectWebScrollbar';
+
+injectWebScrollbar();
+import FloatingTabBar from './components/FloatingTabBar';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
 import LoginScreen from './screens/LoginScreen';
+import RegisterScreen from './screens/RegisterScreen';
 import HomeScreen from './screens/HomeScreen';
 import EventsScreen from './screens/EventsScreen';
 import SearchScreen from './screens/SearchScreen';
@@ -12,6 +23,8 @@ import NotificationsScreen from './screens/NotificationsScreen';
 import ProfileScreen from './screens/ProfileScreen';
 import EventDetailScreen from './screens/EventDetailScreen';
 import VenueScreen from './screens/VenueScreen';
+import OnboardingInterestsScreen from './screens/OnboardingInterestsScreen';
+import MyAgendaScreen from './screens/MyAgendaScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -61,6 +74,9 @@ function ProfileStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
+      <Stack.Screen name="MyAgenda" component={MyAgendaScreen} />
+      <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+      <Stack.Screen name="VenueScreen" component={VenueScreen} />
     </Stack.Navigator>
   );
 }
@@ -68,31 +84,11 @@ function ProfileStack() {
 function MainTabs() {
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      tabBar={(props) => <FloatingTabBar {...props} />}
+      screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: '#9B5DE5',
-        tabBarInactiveTintColor: '#ccc',
-        tabBarStyle: {
-          backgroundColor: '#1C0A3E',
-          borderTopWidth: 0,
-        },
-        tabBarIcon: ({ color, size }) => {
-          switch (route.name) {
-            case 'Home':
-              return <Ionicons name="map-outline" size={size} color={color} />;
-            case 'Events':
-              return <MaterialCommunityIcons name="calendar-multiselect" size={size} color={color} />;
-            case 'Search':
-              return <Feather name="search" size={size} color={color} />;
-            case 'Notifications':
-              return <Ionicons name="notifications-outline" size={size} color={color} />;
-            case 'Profile':
-              return <Ionicons name="person-outline" size={size} color={color} />;
-            default:
-              return null;
-          }
-        },
-      })}
+      }}
+      sceneContainerStyle={{ backgroundColor: '#0F0F23' }}
     >
       <Tab.Screen name="Home" component={HomeStack} options={{ tabBarLabel: 'Mapa' }} />
       <Tab.Screen name="Events" component={EventsStack} options={{ tabBarLabel: 'Eventos' }} />
@@ -103,17 +99,32 @@ function MainTabs() {
   );
 }
 
-export default function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+function AppNavigator() {
+  const { isAuthenticated, isLoading, user } = useAuth();
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9B5DE5" />
+      </View>
+    );
+  }
+
+  const needsOnboarding = isAuthenticated && user && !user.has_interests;
 
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>
-        {!isLoggedIn ? (
-          <Stack.Screen
-            name="Login"
-            component={(props) => <LoginScreen {...props} onLogin={() => setIsLoggedIn(true)} />}
-          />
+        {!isAuthenticated ? (
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Register" component={RegisterScreen} />
+          </>
+        ) : needsOnboarding ? (
+          <>
+            <Stack.Screen name="OnboardingInterests" component={OnboardingInterestsScreen} />
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+          </>
         ) : (
           <Stack.Screen name="MainTabs" component={MainTabs} />
         )}
@@ -121,3 +132,39 @@ export default function App() {
     </NavigationContainer>
   );
 }
+
+export default function App() {
+  const [fontsLoaded] = useFonts({
+    Outfit_400Regular,
+    Outfit_500Medium,
+    Outfit_600SemiBold,
+    Outfit_700Bold,
+  });
+
+  if (!fontsLoaded) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#9B5DE5" />
+      </View>
+    );
+  }
+
+  return (
+    <SafeAreaProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </QueryClientProvider>
+    </SafeAreaProvider>
+  );
+}
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: '#1C0A3E',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});

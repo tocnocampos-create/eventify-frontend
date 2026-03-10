@@ -9,8 +9,9 @@ import {
   ActivityIndicator,
   Keyboard,
 } from 'react-native';
+import { GOOGLE_PLACES_API_KEY } from '../config/env';
 
-const GOOGLE_API_KEY = 'AIzaSyCkEx3Clqb59_u70BOqkXBnK21CbgCR-90';
+const GOOGLE_API_KEY = GOOGLE_PLACES_API_KEY;
 
 // Debounce helper
 const useDebounce = (value, delay) => {

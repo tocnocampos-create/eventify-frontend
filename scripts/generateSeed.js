@@ -152,8 +152,17 @@ const neighborhoodRecords = barrios.map((barrio, index) => {
   return {
     id: index + 1,
     slug: barrio.id,
+    name: barrio.name || barrio.id,
     description,
     coordinates: barrio.coordinates || [],
+    fillColor: barrio.fillColor || null,
+    strokeColor: barrio.strokeColor || null,
+    shortDescription: barrio.shortDescription || null,
+    scheduleOpen: barrio.schedule?.open || null,
+    scheduleClose: barrio.schedule?.close || null,
+    keywords: barrio.keywords || [],
+    photos: barrio.photos || [],
+    recommendations: barrio.recommendations ? JSON.stringify(barrio.recommendations) : null,
   };
 });
 
@@ -192,6 +201,11 @@ const venueRecords = venues.map((venue, index) => {
     stars: venue.stars ?? null,
     coordinates: coordinatesArray,
     schedule: venue.schedule || null,
+    city: venue.city || null,
+    coverImageUrl: typeof venue.coverImage === 'string' && venue.coverImage.startsWith('http') ? venue.coverImage : null,
+    profileImageUrl: typeof venue.profileImage === 'string' && venue.profileImage.startsWith('http') ? venue.profileImage : null,
+    websiteUrl: venue.websiteUrl || null,
+    menuPdfUrl: venue.menuPdfUrl || null,
     neighborhoodId: findNeighborhoodIdForVenue(venue),
   };
 });
@@ -218,10 +232,10 @@ const findVenueIdForEvent = (location) => {
   return null;
 };
 
-const eventRecords = events.map((event) => {
+const eventRecords = events.map((event, index) => {
   const venueId = findVenueIdForEvent(event.location);
   return {
-    id: event.id,
+    id: index + 1,
     venueId,
     name: event.title,
     type: event.type || null,
@@ -230,6 +244,10 @@ const eventRecords = events.map((event) => {
     description: event.description || null,
     priceRange: event.priceRange || event.price_range || [],
     date: event.date,
+    timeStart: event.timeStart || null,
+    timeEnd: event.timeEnd || null,
+    imageUrl: event.image || null,
+    url: event.url || null,
   };
 });
 
@@ -261,40 +279,73 @@ lines.push('DROP TABLE IF EXISTS neighborhoods;');
 lines.push('');
 lines.push(`CREATE TABLE neighborhoods (
   id INTEGER PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
   description TEXT NOT NULL,
-  coordinates DOUBLE PRECISION[] NOT NULL
+  coordinates DOUBLE PRECISION[] NOT NULL,
+  fill_color VARCHAR(50),
+  stroke_color VARCHAR(50),
+  short_description TEXT,
+  schedule_open VARCHAR(10),
+  schedule_close VARCHAR(10),
+  keywords TEXT[],
+  photos TEXT[],
+  recommendations TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );`);
 lines.push('');
 lines.push(`CREATE TABLE venues (
   id INTEGER PRIMARY KEY,
-  neighborhood_id INTEGER REFERENCES neighborhoods(id),
-  name TEXT NOT NULL,
-  type TEXT,
+  name VARCHAR(255) NOT NULL,
+  venue_type VARCHAR(50) NOT NULL DEFAULT '',
   description TEXT,
-  stars NUMERIC(3,1),
-  coordinates DOUBLE PRECISION[],
+  stars DOUBLE PRECISION,
+  coordinates DOUBLE PRECISION[] NOT NULL,
   schedule TIME,
+  city VARCHAR(100),
+  cover_image_url VARCHAR(500),
+  profile_image_url VARCHAR(500),
+  website_url VARCHAR(500),
+  menu_pdf_url VARCHAR(500),
+  neighborhood_id INTEGER REFERENCES neighborhoods(id),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (stars IS NULL OR (stars >= 0 AND stars <= 10))
 );`);
 lines.push('');
 lines.push(`CREATE TABLE events (
   id INTEGER PRIMARY KEY,
   venue_id INTEGER REFERENCES venues(id),
-  name TEXT NOT NULL,
-  type TEXT,
-  category TEXT,
+  name VARCHAR(255) NOT NULL,
+  type VARCHAR(50),
+  category VARCHAR(100),
   keywords TEXT[],
   description TEXT,
   price_range DOUBLE PRECISION[],
-  event_date DATE
+  date VARCHAR(50) NOT NULL,
+  time_start VARCHAR(10),
+  time_end VARCHAR(10),
+  image_url VARCHAR(500),
+  url VARCHAR(500),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );`);
 lines.push('');
 
 neighborhoodRecords.forEach((record) => {
+  const values = [
+    record.id,
+    escapeLiteral(record.name),
+    escapeLiteral(record.description),
+    formatCoordinatePairs(record.coordinates),
+    escapeLiteral(record.fillColor),
+    escapeLiteral(record.strokeColor),
+    escapeLiteral(record.shortDescription),
+    escapeLiteral(record.scheduleOpen),
+    escapeLiteral(record.scheduleClose),
+    toTextArrayLiteral(record.keywords || []),
+    toTextArrayLiteral(record.photos || []),
+    escapeLiteral(record.recommendations),
+  ];
   lines.push(
-    `INSERT INTO neighborhoods (id, description, coordinates) VALUES (${record.id}, ${escapeLiteral(
-      record.description
-    )}, ${formatCoordinatePairs(record.coordinates)});`
+    `INSERT INTO neighborhoods (id, name, description, coordinates, fill_color, stroke_color, short_description, schedule_open, schedule_close, keywords, photos, recommendations) VALUES (${values.join(', ')});`
   );
 });
 
@@ -305,17 +356,20 @@ venueRecords.forEach((venue) => {
     venue.id,
     venue.neighborhoodId === null ? 'NULL' : venue.neighborhoodId,
     escapeLiteral(venue.name),
-    escapeLiteral(venue.type),
+    escapeLiteral(venue.type || ''),
     escapeLiteral(venue.description),
     venue.stars == null ? 'NULL' : venue.stars,
     formatFloatArray(venue.coordinates),
     venue.schedule ? escapeLiteral(venue.schedule) : 'NULL',
+    escapeLiteral(venue.city),
+    escapeLiteral(venue.coverImageUrl),
+    escapeLiteral(venue.profileImageUrl),
+    escapeLiteral(venue.websiteUrl),
+    escapeLiteral(venue.menuPdfUrl),
   ];
 
   lines.push(
-    `INSERT INTO venues (id, neighborhood_id, name, type, description, stars, coordinates, schedule) VALUES (${values.join(
-      ', '
-    )});`
+    `INSERT INTO venues (id, neighborhood_id, name, venue_type, description, stars, coordinates, schedule, city, cover_image_url, profile_image_url, website_url, menu_pdf_url) VALUES (${values.join(', ')});`
   );
 });
 
@@ -332,12 +386,14 @@ eventRecords.forEach((event) => {
     escapeLiteral(event.description),
     formatFloatArray(event.priceRange || []),
     escapeLiteral(event.date),
+    escapeLiteral(event.timeStart),
+    escapeLiteral(event.timeEnd),
+    escapeLiteral(event.imageUrl),
+    escapeLiteral(event.url),
   ];
 
   lines.push(
-    `INSERT INTO events (id, venue_id, name, type, category, keywords, description, price_range, event_date) VALUES (${values.join(
-      ', '
-    )});`
+    `INSERT INTO events (id, venue_id, name, type, category, keywords, description, price_range, date, time_start, time_end, image_url, url) VALUES (${values.join(', ')});`
   );
 });
 

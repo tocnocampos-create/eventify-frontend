@@ -28,7 +28,7 @@ export const CATEGORY_MAP = {
   "cine": "Cine",
 };
 
-// Subcategorías en ESPAÑOL (single source of truth)
+// Subcategorías en ESPAÑOL (hardcoded fallback — backend /config endpoint is the source of truth)
 export const SUBCATEGORIES = {
   'Música': ['Jazz','Vida Nocturna','Rock','Electrónica','Pop','Folclore','Latina','Indie'],
   'Teatro': ['Drama','Comedia','Danza-Ballet','Musical','Familiar'],
@@ -36,6 +36,19 @@ export const SUBCATEGORIES = {
   'Arte': ['Museos','Centro Cultural','Galerías'],
   'Cine': ['Acción','Drama','Terror','Comedia','Romántica','Familiar'],
 };
+
+/**
+ * Build subcategories map from backend config categories.
+ * Falls back to hardcoded SUBCATEGORIES if config is not available.
+ * @param {Array|undefined} configCategories - categories array from /config endpoint
+ * @returns {Object} map of category name to subcategories array
+ */
+export function buildSubcategoriesFromConfig(configCategories) {
+  if (!configCategories || !Array.isArray(configCategories)) return SUBCATEGORIES;
+  const map = {};
+  configCategories.forEach(c => { map[c.name] = c.subcategories || []; });
+  return Object.keys(map).length > 0 ? map : SUBCATEGORIES;
+}
 
 // Mapeo de inglés a español para tipos de eventos en los datos
 // Este mapa normaliza todos los tipos a los valores canónicos en español

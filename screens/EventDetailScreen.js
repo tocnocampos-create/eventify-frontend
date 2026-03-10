@@ -6,22 +6,26 @@ import {
   StyleSheet,
   TouchableOpacity,
   Linking,
-  ScrollView,
   Alert,
   Platform,
   Modal,
-  Dimensions,
+  useWindowDimensions,
+  Animated,
 } from 'react-native';
+import TabScreenLayout from '../components/TabScreenLayout';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import WebMap from '../components/WebMap';
 import { MapView as NativeMapView, Marker as NativeMarker } from '../components/NativeMap';
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
-/** Usa tu dataset de venues para resolver coordenadas por nombre */
-import venues from '../data/venues';
+import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
+import ReviewModal from '../components/ReviewModal';
+import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
+import { GOOGLE_MAPS_API_KEY } from '../config/env';
 
 // Colores de pines
 const PIN_PURPLE = '#9F7BFF';
@@ -29,6 +33,7 @@ const PIN_TEATRO = '#3B82F6'; // vibrant bright blue para eventos de Teatro
 const PIN_COMEDIA = '#FF69B4'; // vibrant pink para eventos de Comedia
 const PIN_ARTE = '#00BCD4'; // vibrant cyan/turquoise para eventos de Arte
 const PIN_CINE = '#3B52D8'; // deep blue para eventos de Cine
+const IMAGE_HEIGHT = 280;
 
 // Helper para obtener el color del pin basado en la categoría del evento
 const getEventPinColor = (event) => {
@@ -48,58 +53,22 @@ const getEventPinColor = (event) => {
   return PIN_PURPLE; // Default color para otras categorías
 };
 
-/* --- Datos de ejemplo (fallback para MVP) --- */
-const SAMPLE_PRODUCTS = [
-  {
-    id: 'v1',
-    title: 'Vinilo Edición Limitada',
-    price: '30.000',
-    currency: '$',
-    type: 'Vinyl',
-    image: 'https://umusicstore.cl/cdn/shop/products/Vinilo_1_b.png?v=1665163970&width=1000',
-    url: 'https://disqueriachilena.cl/categoriasscd/vinilos',
-  },
-  {
-    id: 'c1',
-    title: 'CD Concierto en Vivo',
-    price: '14.000',
-    currency: '$',
-    type: 'CD',
-    image: 'https://m.media-amazon.com/images/I/71TmKTIdkkL._UF1000,1000_QL80_.jpg',
-    url: 'https://disqueriachilena.cl/categoriasscd/vinilos',
-  },
-  {
-    id: 'm1',
-    title: 'Polera',
-    price: '25.000',
-    currency: '$',
-    type: 'Merch',
-    image: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT_5V7DIWtG1mDkiZ2mqYr39arod_9ircrSkw&',
-    url: 'https://www.latiendanacional.cl/shop',
-  },
-  {
-    id: 'm2',
-    title: 'Afiche',
-    price: '5.000',
-    currency: '$',
-    type: 'Merch',
-    image: 'https://i0.wp.com/www.printmag.com/wp-content/uploads/2021/08/fdcd5a_0bea759ede2e4019abf733f0944564c7mv2.jpg?w=1000&quality=89&ssl=1',
-    url: 'https://www.latiendanacional.cl/shop',
-  },
-];
-
-const SAMPLE_COMMUNITY = {
-  tiktok: 'https://www.tiktok.com/@eventify.live',
-  instagram: 'https://www.instagram.com/eventify.live/',
-  website: 'https://eventifyapp.cl/',
+/** Map platform name → icon config for community links */
+const PLATFORM_ICONS = {
+  tiktok: { pack: 'mci', icon: 'music-note', label: 'TikTok' },
+  instagram: { pack: 'ion', icon: 'logo-instagram', label: 'Instagram' },
+  website: { pack: 'ion', icon: 'link-outline', label: 'Sitio Web' },
+  twitter: { pack: 'ion', icon: 'logo-twitter', label: 'Twitter' },
+  facebook: { pack: 'ion', icon: 'logo-facebook', label: 'Facebook' },
+  youtube: { pack: 'ion', icon: 'logo-youtube', label: 'YouTube' },
+  spotify: { pack: 'mci', icon: 'spotify', label: 'Spotify' },
 };
 
-/* --- Reviews de ejemplo --- */
-const fakeReviews = [
-  { id: 1, user: 'Luis Jara', rating: 5, comment: 'Excelente puesta en escena, experiencia top de principio a fin.' },
-  { id: 2, user: 'Diego Soto', rating: 4, comment: 'Muy buen sonido, de mis salas favoritas en Santiago.' },
-  { id: 3, user: 'Carolina Díaz', rating: 5, comment: 'Ambiente increíble y organización impecable. Lo repetiría.' },
-];
+function getPlatformConfig(platform) {
+  const key = (platform || '').toLowerCase();
+  return PLATFORM_ICONS[key] || { pack: 'ion', icon: 'link-outline', label: platform || 'Enlace' };
+}
+
 
 function Stars({ rating = 0 }) {
   const full = Math.floor(rating);
@@ -178,20 +147,6 @@ function normalizeLatLng(coords) {
   return null;
 }
 
-/** Busca venue por nombre y devuelve coords normalizadas */
-function getVenueCoordsByName(name) {
-  if (!name || !Array.isArray(venues)) return null;
-  const v = venues.find((vn) => vn?.name && vn.name.toLowerCase() === String(name).toLowerCase());
-  if (!v) return null;
-
-  // Soporta varios formatos en venues.js
-  return (
-    normalizeLatLng(v.coordinates) ||
-    (Number.isFinite(toNum(v.latitude)) && Number.isFinite(toNum(v.longitude))
-      ? { latitude: toNum(v.latitude), longitude: toNum(v.longitude) }
-      : normalizeLatLng([v.lat, v.lng]))
-  );
-}
 /* --------- FIN FIX COORDENADAS --------- */
 
 /** Badge tipo producto */
@@ -244,13 +199,49 @@ function LinkPill({ icon = 'link-outline', label, url, pack = 'ion' }) {
 }
 
 export default function EventDetailScreen() {
+  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
   const navigation = useNavigation();
   const route = useRoute();
-  const { event } = route.params;
+  const insets = useSafeAreaInsets();
+  const { event: routeEvent } = route.params;
+  const { data: detailData, isLoading: isDetailLoading } = useEventDetail(routeEvent?.id);
+
+  // Merge: show route params immediately, overlay API data when ready
+  const event = detailData ? { ...routeEvent, ...detailData.event } : routeEvent;
+  const detailVenue = detailData?.venue || null;
+  const reviews = detailData?.reviews || [];
+  const averageRating = detailData?.averageRating ?? null;
+  const reviewCount = detailData?.reviewCount ?? 0;
+
+  const { data: isSaved = false } = useIsEventSaved(routeEvent?.id);
+  const toggleSave = useToggleSaveEvent(routeEvent?.id);
+
   const [lightboxVisible, setLightboxVisible] = useState(false);
+  const [reviewModalVisible, setReviewModalVisible] = useState(false);
   const mapRef = useRef(null);
   const webMapRef = useRef(null);
   const [currentRegion, setCurrentRegion] = useState(null);
+
+  // Collapsing header animation
+  const scrollY = useRef(new Animated.Value(0)).current;
+
+  const imageOpacity = scrollY.interpolate({
+    inputRange: [0, IMAGE_HEIGHT * 0.5, IMAGE_HEIGHT],
+    outputRange: [1, 0.4, 0],
+    extrapolate: 'clamp',
+  });
+
+  const imageTranslateY = scrollY.interpolate({
+    inputRange: [-IMAGE_HEIGHT, 0, IMAGE_HEIGHT],
+    outputRange: [IMAGE_HEIGHT / 2, 0, -IMAGE_HEIGHT * 0.4],
+    extrapolate: 'clamp',
+  });
+
+  const imageScale = scrollY.interpolate({
+    inputRange: [-IMAGE_HEIGHT, 0, IMAGE_HEIGHT],
+    outputRange: [1.8, 1, 1],
+    extrapolate: 'clamp',
+  });
 
   const handleBackPress = () => navigation.goBack();
 
@@ -265,9 +256,12 @@ export default function EventDetailScreen() {
   };
 
   const handleVenuePress = () => {
-    const venueName = event?.venueName || event?.location;
-    if (!venueName) return;
-    navigation.navigate('VenueScreen', { venueName });
+    const name = event?.venueName || event?.location;
+    if (!name) return;
+    navigation.navigate('VenueScreen', {
+      venueId: detailVenue?.id || null,
+      venueName: name,
+    });
   };
 
   const formatEventDate = (dateString, hour) => {
@@ -282,17 +276,23 @@ export default function EventDetailScreen() {
 
   const displayDateTime = formatEventDate(event?.date, event?.timeStart || event?.hour);
 
-  /** 1) coords del evento, 2) coords de la venue, 3) fallback */
+  // Only allow writing reviews for past events
+  const isEventPast = useMemo(() => {
+    if (!event?.date) return false;
+    const eventDate = dayjs(event.date);
+    if (!eventDate.isValid()) return false;
+    return eventDate.isBefore(dayjs(), 'day');
+  }, [event?.date]);
+
+  /** 1) coords del evento, 2) coords de la venue del detail, 3) fallback */
   const normalizedCoord = useMemo(() => {
     const fromEvent = normalizeLatLng(event?.coordinates);
     if (fromEvent) return fromEvent;
 
-    const venueName = event?.venueName || event?.location;
-    const fromVenue = getVenueCoordsByName(venueName);
-    if (fromVenue) return fromVenue;
+    if (detailVenue?.coordinates) return detailVenue.coordinates;
 
     return null;
-  }, [event?.coordinates, event?.venueName, event?.location]);
+  }, [event?.coordinates, detailVenue?.coordinates]);
 
   const STREET_ZOOM_DELTA = 0.00005;
   const initialRegion = normalizedCoord
@@ -309,9 +309,8 @@ export default function EventDetailScreen() {
         longitudeDelta: 0.05,
       };
 
-  // FALLBACKS para MVP
-  const products = Array.isArray(event?.products) && event.products.length > 0 ? event.products : SAMPLE_PRODUCTS;
-  const community = event?.community ? event.community : SAMPLE_COMMUNITY;
+  const products = detailData?.products || [];
+  const communityLinks = detailData?.communityLinks || [];
 
   // Check if event is Teatro, Cine, or Arte (for review section)
   const isReviewCategory = event?.category === 'Teatro' || event?.category === 'Cine' || event?.category === 'Arte';
@@ -319,16 +318,12 @@ export default function EventDetailScreen() {
   // Categories that should not show "Productos del Artista"
   const shouldHideProducts = isReviewCategory || event?.category === 'Comedia';
   
-  // Sample review data (can be replaced with actual event.review data)
-  const reviewData = event?.review || {
-    text: 'Una obra magistral que combina elementos visuales y narrativos de manera excepcional. La dirección y el elenco logran crear una experiencia inmersiva que no te puedes perder.',
-    url: 'https://example.com/review',
-    source: 'Crítica Especializada'
-  };
+  // Only show review if the event actually has review data from backend
+  const reviewData = event?.review || null;
 
-  const hasProducts = products && products.length > 0 && !shouldHideProducts;
+  const hasProducts = products.length > 0 && !shouldHideProducts;
   const hasReview = isReviewCategory && reviewData?.text;
-  const hasCommunity = !!(community?.tiktok || community?.instagram || community?.website);
+  const hasCommunity = communityLinks.length > 0;
 
   const openInGoogleMaps = () => {
     if (!normalizedCoord) return;
@@ -388,18 +383,28 @@ export default function EventDetailScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      {/* Imagen del evento */}
-      {event?.image ? (
-        <TouchableOpacity onPress={() => setLightboxVisible(true)} activeOpacity={0.9}>
-          <Image source={{ uri: event.image }} style={styles.image} />
-        </TouchableOpacity>
-      ) : (
-        <View style={[styles.image, { backgroundColor: '#444' }]} />
-      )}
+    <TabScreenLayout style={styles.container}>
+      {/* Animated parallax header image */}
+      <Animated.View
+        style={[
+          styles.imageContainer,
+          {
+            opacity: imageOpacity,
+            transform: [{ translateY: imageTranslateY }, { scale: imageScale }],
+          },
+        ]}
+      >
+        {event?.image ? (
+          <TouchableOpacity onPress={() => setLightboxVisible(true)} activeOpacity={0.9}>
+            <Image source={{ uri: event.image }} style={styles.image} />
+          </TouchableOpacity>
+        ) : (
+          <View style={[styles.image, { backgroundColor: '#444' }]} />
+        )}
+      </Animated.View>
 
       {/* Botón de volver */}
-      <TouchableOpacity onPress={handleBackPress} style={styles.backButton}>
+      <TouchableOpacity onPress={handleBackPress} style={[styles.backButton, { top: insets.top + 10 }]}>
         <Ionicons name="arrow-back" size={24} color="#fff" />
       </TouchableOpacity>
 
@@ -419,14 +424,14 @@ export default function EventDetailScreen() {
             <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
           <TouchableOpacity
-            style={styles.lightboxImageContainer}
+            style={[styles.lightboxImageContainer, { width: screenWidth, height: screenHeight }]}
             onPress={() => setLightboxVisible(false)}
             activeOpacity={1}
           >
             {event?.image && (
               <Image
                 source={{ uri: event.image }}
-                style={styles.lightboxImage}
+                style={{ width: screenWidth, height: screenHeight }}
                 resizeMode="contain"
               />
             )}
@@ -434,7 +439,17 @@ export default function EventDetailScreen() {
         </View>
       </Modal>
 
-      <ScrollView style={styles.detailsContainer} contentContainerStyle={{ paddingBottom: 160 }}>
+      <Animated.ScrollView
+        style={{ flex: 1 }}
+        contentContainerStyle={{ paddingTop: IMAGE_HEIGHT }}
+        onScroll={Animated.event(
+          [{ nativeEvent: { contentOffset: { y: scrollY } } }],
+          { useNativeDriver: true }
+        )}
+        scrollEventThrottle={16}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.contentCard}>
         <Text style={styles.title}>{event?.title || 'Evento'}</Text>
 
         {!!event?.description && <Text style={styles.description}>{event.description}</Text>}
@@ -458,8 +473,21 @@ export default function EventDetailScreen() {
         </TouchableOpacity>
 
         {/* Guardar plan */}
-        <TouchableOpacity style={styles.savePlanButton} activeOpacity={0.8}>
-          <Text style={styles.savePlanText}>Guardarlo en tus planes</Text>
+        <TouchableOpacity
+          style={[styles.savePlanButton, isSaved && styles.savePlanButtonActive]}
+          activeOpacity={0.8}
+          onPress={() => toggleSave.mutate(isSaved)}
+          disabled={toggleSave.isPending}
+        >
+          <Ionicons
+            name={isSaved ? 'bookmark' : 'bookmark-outline'}
+            size={18}
+            color={isSaved ? ACCENT : '#fff'}
+            style={{ marginRight: 8 }}
+          />
+          <Text style={[styles.savePlanText, isSaved && styles.savePlanTextActive]}>
+            {isSaved ? 'Guardado en tus planes' : 'Guardar en tus planes'}
+          </Text>
         </TouchableOpacity>
 
         {/* Mapa pequeño */}
@@ -478,7 +506,7 @@ export default function EventDetailScreen() {
             {Platform.OS === 'web' ? (
               <WebMap
                 ref={webMapRef}
-                apiKey={"AIzaSyBJymkbeUvctbb43PnnTUZ9GQNo6IeEwd0"}
+                apiKey={GOOGLE_MAPS_API_KEY}
                 style={styles.smallMap}
                 initialRegion={initialRegion}
                 onRegionChange={handleRegionChange}
@@ -529,20 +557,36 @@ export default function EventDetailScreen() {
 
         {/* Reviews */}
         <View style={styles.reviewsContainer}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
             <Text style={styles.sectionTitle}>Reseñas</Text>
-          {fakeReviews.map((r) => (
-            <View key={r.id} style={styles.reviewCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Text style={styles.reviewUser}>{r.user}</Text>
-                <Stars rating={r.rating} />
+            {reviewCount > 0 && (
+              <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                <Stars rating={averageRating || 0} />
+                <Text style={{ color: '#aaa', fontSize: 12, marginLeft: 6 }}>({reviewCount})</Text>
               </View>
-              <Text style={styles.reviewComment}>{r.comment}</Text>
-            </View>
-          ))}
-          <TouchableOpacity style={styles.addReviewButton} activeOpacity={0.8}>
-            <Ionicons name="create-outline" size={16} color="#22003D" />
-            <Text style={styles.addReviewText}>Escribir una reseña</Text>
-          </TouchableOpacity>
+            )}
+          </View>
+          {isDetailLoading ? (
+            <Text style={{ color: '#aaa', fontSize: 14 }}>Cargando reseñas...</Text>
+          ) : reviews.length === 0 ? (
+            <Text style={{ color: '#aaa', fontSize: 14 }}>Aún no hay reseñas</Text>
+          ) : (
+            reviews.map((r) => (
+              <View key={r.id} style={styles.reviewCard}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.reviewUser}>{r.user}</Text>
+                  <Stars rating={r.rating} />
+                </View>
+                <Text style={styles.reviewComment}>{r.comment}</Text>
+              </View>
+            ))
+          )}
+          {isEventPast && (
+            <TouchableOpacity style={styles.addReviewButton} activeOpacity={0.8} onPress={() => setReviewModalVisible(true)}>
+              <Ionicons name="create-outline" size={16} color="#22003D" />
+              <Text style={styles.addReviewText}>Escribir una reseña</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
         {/* Products (merch, vinyl, cd) */}
@@ -582,14 +626,31 @@ export default function EventDetailScreen() {
           <View style={{ marginTop: 16, marginBottom: 12 }}>
             <Text style={styles.sectionTitle}>Comunidad</Text>
             <View style={styles.linksRow}>
-              <LinkPill pack="mci" icon="music-note" label="TikTok" url={community?.tiktok} />
-              <LinkPill icon="logo-instagram" label="Instagram" url={community?.instagram} />
-              <LinkPill icon="link-outline" label="Sitio Web" url={community?.website} />
+              {communityLinks.map((link) => {
+                const cfg = getPlatformConfig(link.platform);
+                return (
+                  <LinkPill
+                    key={link.id}
+                    pack={cfg.pack}
+                    icon={cfg.icon}
+                    label={cfg.label}
+                    url={link.url}
+                  />
+                );
+              })}
             </View>
           </View>
         )}
-      </ScrollView>
-    </View>
+        </View>
+      </Animated.ScrollView>
+
+      <ReviewModal
+        visible={reviewModalVisible}
+        onClose={() => setReviewModalVisible(false)}
+        eventId={event?.id}
+        eventName={event?.title}
+      />
+    </TabScreenLayout>
   );
 }
 
@@ -600,17 +661,33 @@ const INK = '#22003D';
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#110933' },
-  image: { width: '100%', height: 260 },
+  imageContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: IMAGE_HEIGHT,
+    zIndex: 0,
+    overflow: 'hidden',
+  },
+  image: { width: '100%', height: IMAGE_HEIGHT },
+  contentCard: {
+    backgroundColor: '#110933',
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    marginTop: -24,
+    paddingTop: 24,
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
   backButton: {
     position: 'absolute',
-    top: 50,
     left: 20,
     backgroundColor: 'rgba(0,0,0,0.4)',
     padding: 8,
     borderRadius: 30,
     zIndex: 10,
   },
-  detailsContainer: { paddingHorizontal: 20, paddingTop: 20 },
   title: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 12 },
   description: { fontSize: 15, color: '#ccc', marginBottom: 20, lineHeight: 22 },
   dateText: { fontSize: 14, color: '#ddd', marginBottom: 10, fontWeight: '500' },
@@ -634,8 +711,23 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   ticketButtonText: { color: INK, fontSize: 16, fontWeight: '700' },
-  savePlanButton: { alignItems: 'center', paddingVertical: 10, marginBottom: 8 },
-  savePlanText: { color: '#aaa', fontSize: 14 },
+  savePlanButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: 'rgba(191, 160, 255, 0.3)',
+    backgroundColor: 'rgba(26, 18, 61, 0.6)',
+    marginBottom: 8,
+  },
+  savePlanButtonActive: {
+    borderColor: 'rgba(191, 160, 255, 0.5)',
+    backgroundColor: 'rgba(155, 93, 229, 0.15)',
+  },
+  savePlanText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  savePlanTextActive: { color: ACCENT },
 
   mapWrapper: { marginTop: 8, marginBottom: 20 },
   mapsBtn: {
@@ -768,14 +860,8 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   lightboxImageContainer: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  lightboxImage: {
-    width: Dimensions.get('window').width,
-    height: Dimensions.get('window').height,
   },
 });
 
