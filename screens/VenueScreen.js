@@ -21,6 +21,7 @@ import 'dayjs/locale/es';
 dayjs.locale('es');
 
 import { useVenueDetail } from '../hooks/useVenueDetail';
+import { useVenueReviews } from '../hooks/useVenueReviews';
 import { normalizeVenueType } from '../utils/venueTypes';
 import ReviewModal from '../components/ReviewModal';
 import useDragScroll from '../hooks/useDragScroll';
@@ -52,9 +53,13 @@ export default function VenueScreen() {
   const insets = useSafeAreaInsets();
   const { venueId, venueName } = route.params;
 
-  const { data, isLoading, isError } = useVenueDetail(venueId);
+  const { data, isLoading, isError } = useVenueDetail(venueId, venueName);
   const { data: isFollowing = false } = useIsFollowingVenue(venueId);
   const toggleFollow = useToggleFollowVenue(venueId);
+  const {
+    data: reviewsData = [],
+    isLoading: reviewsLoading,
+  } = useVenueReviews(venueId);
 
   // State for image lightbox
   const [lightboxVisible, setLightboxVisible] = useState(false);
@@ -67,7 +72,7 @@ export default function VenueScreen() {
   const venue = data?.venue;
   const upcomingEvents = data?.upcomingEvents || [];
   const pastEvents = data?.pastEvents || [];
-  const reviews = data?.reviews || [];
+  const reviews = reviewsData;
   const averageRating = data?.averageRating ?? null;
   const reviewCount = data?.reviewCount ?? 0;
 
@@ -342,7 +347,9 @@ export default function VenueScreen() {
             </Text>
           )}
         </View>
-        {reviews.length > 0 ? (
+        {reviewsLoading ? (
+          <ActivityIndicator size="small" color="#9B5DE5" style={{ marginVertical: 16 }} />
+        ) : reviews.length > 0 ? (
           reviews.map((r) => (
             <View key={r.id} style={styles.reviewCard}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>

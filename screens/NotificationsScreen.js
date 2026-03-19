@@ -26,7 +26,7 @@ import {
 import colors from '../theme/colors';
 import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
-import { useNotificationFeed } from '../hooks/useUserPreferences';
+import { useNotificationFeed, useFollowedVenues } from '../hooks/useUserPreferences';
 import { useAppConfig, getCategoryBadgeColors } from '../hooks/useAppConfig';
 
 import dayjs from 'dayjs';
@@ -61,6 +61,7 @@ export default function NotificationScreen({ navigation }) {
   const { data: config } = useAppConfig();
   const badgeColors = getCategoryBadgeColors(config?.categories);
   const { data: feed, isLoading } = useNotificationFeed();
+  const { data: followedVenues = [], isLoading: followedVenuesLoading } = useFollowedVenues();
 
   const savedEvents = (feed?.saved_events || []).map(toFrontendEvent);
   const followedVenueEvents = feed?.followed_venue_events || {};
@@ -204,25 +205,53 @@ export default function NotificationScreen({ navigation }) {
             <Text style={styles.sectionTitle}>En Mis Venues</Text>
           </View>
         </View>
-        {Object.keys(followedVenueEvents).length > 0 ? (
-          Object.entries(followedVenueEvents).map(([venue, venueEvents]) => (
-            <View key={venue} style={styles.venueSection}>
-              <View style={styles.venueHeader}>
-                <MapPin size={14} color={colors.textDim} />
-                <Text style={styles.venueTitle}>{venue}</Text>
-                <ChevronRight size={14} color={colors.textDim} />
+        {followedVenuesLoading ? (
+          <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
+        ) : followedVenues.length > 0 ? (
+          followedVenues.map((venue) => {
+            const venueEvents = followedVenueEvents[venue.name] || [];
+            return (
+              <View key={venue.id} style={styles.venueSection}>
+                <TouchableOpacity
+                  style={styles.venueHeader}
+                  activeOpacity={0.8}
+                  onPress={() =>
+                    navigation.navigate('VenueScreen', {
+                      venueId: venue.id,
+                      venueName: venue.name,
+                      venueType: venue.type,
+                      venueCity: venue.city,
+                      coverImage: venue.coverImage,
+                      profileImage: venue.profileImage,
+                      menuPdfUrl: venue.menuPdfUrl,
+                    })
+                  }
+                >
+                  <MapPin size={14} color={colors.textDim} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.venueTitle}>{venue.name}</Text>
+                    {(venue.type || venue.city) && (
+                      <Text style={styles.venueMeta}>
+                        {[venue.type, venue.city].filter(Boolean).join(' · ')}
+                      </Text>
+                    )}
+                  </View>
+                  <ChevronRight size={14} color={colors.textDim} />
+                </TouchableOpacity>
+                {venueEvents.length > 0 && (
+                  <FlatList
+                    ref={dragRef}
+                    horizontal
+                    data={venueEvents}
+                    renderItem={renderHorizontalCard}
+                    keyExtractor={(item) => item.id.toString()}
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={{ paddingHorizontal: 4 }}
+                  />
+                )}
               </View>
-              <FlatList
-                ref={dragRef}
-                horizontal
-                data={venueEvents}
-                renderItem={renderHorizontalCard}
-                keyExtractor={(item) => item.id.toString()}
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={{ paddingHorizontal: 4 }}
-              />
-            </View>
-          ))
+            );
+          })
         ) : (
           <GlassOverlay borderRadius={12} style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Aún no sigues ningún venue</Text>
@@ -291,7 +320,12 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     fontFamily: 'Outfit_600SemiBold',
-    flex: 1,
+  },
+  venueMeta: {
+    color: colors.textDim,
+    fontSize: 12,
+    fontFamily: 'Outfit_400Regular',
+    marginTop: 1,
   },
 
   // Event cards (full width)

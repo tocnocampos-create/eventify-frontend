@@ -7,7 +7,10 @@ export function useCreateReview({ venueId, eventId } = {}) {
   return useMutation({
     mutationFn: createReview,
     onSuccess: () => {
-      if (venueId) queryClient.invalidateQueries({ queryKey: ['venueDetail', venueId] });
+      if (venueId) {
+        queryClient.invalidateQueries({ queryKey: ['venueDetail', venueId] });
+        queryClient.invalidateQueries({ queryKey: ['venueReviews', venueId] });
+      }
       if (eventId) queryClient.invalidateQueries({ queryKey: ['eventDetail', eventId] });
     },
   });

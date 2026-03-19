@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   followVenue,
   unfollowVenue,
+  fetchFollowingVenues,
   fetchIsFollowing,
   saveEvent,
   unsaveEvent,
@@ -11,6 +12,7 @@ import {
   fetchInterests,
   fetchNotificationFeed,
 } from '../api/userPreferences';
+import { transformVenue } from '../api/transformers';
 
 // ── Venue follows ─────────────────────────────────────────────
 
@@ -19,6 +21,16 @@ export function useIsFollowingVenue(venueId) {
     queryKey: ['isFollowing', venueId],
     queryFn: () => fetchIsFollowing(venueId),
     enabled: !!venueId,
+  });
+}
+
+export function useFollowedVenues() {
+  return useQuery({
+    queryKey: ['followedVenues'],
+    queryFn: async () => {
+      const raw = await fetchFollowingVenues();
+      return raw.map(transformVenue);
+    },
   });
 }
 
@@ -33,6 +45,7 @@ export function useToggleFollowVenue(venueId) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['isFollowing', venueId] });
+      queryClient.invalidateQueries({ queryKey: ['followedVenues'] });
       queryClient.invalidateQueries({ queryKey: ['notificationFeed'] });
     },
   });
@@ -59,6 +72,7 @@ export function useToggleSaveEvent(eventId) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['isSaved', eventId] });
+      queryClient.invalidateQueries({ queryKey: ['savedEvents'] });
       queryClient.invalidateQueries({ queryKey: ['notificationFeed'] });
     },
   });

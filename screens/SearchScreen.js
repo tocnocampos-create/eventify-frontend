@@ -27,6 +27,8 @@ import {
   Check,
 } from 'lucide-react-native';
 import { useDiscover } from '../hooks/useDiscover';
+import { useVenues, useEvents } from '../hooks/useMapData';
+import { useSearch } from '../hooks/useSearch';
 import { useAuth } from '../contexts/AuthContext';
 import Slider from '../components/CrossPlatformSlider';
 import colors from '../theme/colors';
@@ -43,6 +45,8 @@ export default function SearchScreen() {
   const [radius, setRadius] = useState(10);
   const [radiusModalVisible, setRadiusModalVisible] = useState(false);
   const [showCityDropdown, setShowCityDropdown] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedVenueType, setSelectedVenueType] = useState(null);
 
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
@@ -61,6 +65,23 @@ export default function SearchScreen() {
     lon: location?.coords?.longitude,
     city,
     radiusKm: radius,
+  });
+
+  // Full dataset for free-text search — React Query caches these globally
+  // so they are free if HomeScreen already fetched them.
+  const { data: venues = [], isLoading: venuesLoading } = useVenues();
+  const { data: events = [], isLoading: eventsLoading } = useEvents(venues);
+  const searchDataLoading = venuesLoading || eventsLoading;
+
+  // Structured filter search via GET /api/search
+  const hasStructuredFilter = !!(selectedCategory || selectedVenueType);
+  const {
+    data: searchResults,
+    isLoading: searchLoading,
+    isError: searchError,
+  } = useSearch({
+    venueType: selectedVenueType || undefined,
+    eventCategory: selectedCategory || undefined,
   });
 
   // Request location on mount
@@ -86,39 +107,30 @@ export default function SearchScreen() {
     })();
   }, []);
 
-  // Local search filtering against discover data
+  // Free-text search against the full venues/events dataset
   const getFilteredResults = useCallback(() => {
-    if (!searchQuery || !discover) return { events: [], venues: [] };
+    if (!searchQuery) return { events: [], venues: [] };
     const q = searchQuery.toLowerCase();
 
-    const allEvents = [
-      ...(discover.trending || []),
-      ...(discover.today || []),
-      ...(discover.thisWeek || []),
-      ...(discover.forYou || []),
-    ];
-    // Deduplicate by id
-    const seenIds = new Set();
-    const uniqueEvents = allEvents.filter((e) => {
-      if (seenIds.has(e.id)) return false;
-      seenIds.add(e.id);
-      return (
+    const matchedEvents = events.filter(
+      (e) =>
         (e.title || '').toLowerCase().includes(q) ||
         (e.location || '').toLowerCase().includes(q)
-      );
-    });
-
-    const matchedVenues = (discover.nearbyVenues || []).filter(
-      (v) =>
-        (v.name || '').toLowerCase().includes(q) ||
-        (v.type || '').toLowerCase().includes(q)
     );
 
-    return { events: uniqueEvents, venues: matchedVenues };
-  }, [searchQuery, discover]);
+    const matchedVenues = venues.filter(
+      (v) =>
+        (v.name || '').toLowerCase().includes(q) ||
+        (v.type || '').toLowerCase().includes(q) ||
+        (v.city || '').toLowerCase().includes(q)
+    );
+
+    return { events: matchedEvents, venues: matchedVenues };
+  }, [searchQuery, events, venues]);
 
   const filtered = getFilteredResults();
-  const showDropdown = searchQuery.length > 0 && (filtered.events.length > 0 || filtered.venues.length > 0);
+  const showSearchLoading = searchQuery.length > 0 && searchDataLoading;
+  const showDropdown = searchQuery.length > 0 && !searchDataLoading && (filtered.events.length > 0 || filtered.venues.length > 0);
 
   const navigateToEvent = (event) => navigation.navigate('EventDetail', { event });
   const navigateToVenue = (venue) =>
@@ -171,19 +183,32 @@ export default function SearchScreen() {
       >
         <View style={styles.content}>
 
-          {/* Location Pill */}
-          <TouchableOpacity
-            onPress={() => setRadiusModalVisible(true)}
-            activeOpacity={0.8}
-          >
-            <GlassOverlay borderRadius={12} style={styles.explorarButton}>
-              <Compass size={18} color={colors.primary} />
-              <Text style={styles.explorarText}>
-                Explorar: {city || 'Santiago'} ({radius} km)
-              </Text>
-              <SlidersHorizontal size={16} color={colors.textDim} />
-            </GlassOverlay>
-          </TouchableOpacity>
+          {/* Location + Filter Pill */}
+          <View style={styles.explorarRow}>
+            <TouchableOpacity
+              onPress={() => setRadiusModalVisible(true)}
+              activeOpacity={0.8}
+              style={{ flex: 1 }}
+            >
+              <GlassOverlay borderRadius={12} style={styles.explorarButton}>
+                <Compass size={18} color={colors.primary} />
+                <Text style={styles.explorarText} numberOfLines={1}>
+                  {city || 'Santiago'} ({radius} km)
+                  {selectedCategory ? ` · ${selectedCategory}` : ''}
+                  {selectedVenueType ? ` · ${selectedVenueType}` : ''}
+                </Text>
+                <SlidersHorizontal size={16} color={hasStructuredFilter ? colors.primary : colors.textDim} />
+              </GlassOverlay>
+            </TouchableOpacity>
+            {hasStructuredFilter && (
+              <TouchableOpacity
+                onPress={() => { setSelectedCategory(null); setSelectedVenueType(null); }}
+                style={styles.clearFiltersButton}
+              >
+                <X size={16} color={colors.primary} />
+              </TouchableOpacity>
+            )}
+          </View>
 
           {/* Search Input */}
           <View style={styles.searchWrapper}>
@@ -207,6 +232,13 @@ export default function SearchScreen() {
                 )}
               </View>
             </GlassOverlay>
+
+            {/* Search loading indicator */}
+            {showSearchLoading && (
+              <View style={styles.resultSection}>
+                <ActivityIndicator size="small" color={colors.primary} />
+              </View>
+            )}
 
             {/* Search Results Dropdown */}
             {showDropdown && (
@@ -267,8 +299,64 @@ export default function SearchScreen() {
             </View>
           )}
 
-          {/* Discovery sections — only when not loading and no search active */}
-          {!isLoading && !isError && discover && (
+          {/* Structured filter results */}
+          {hasStructuredFilter && (
+            <>
+              {searchLoading && (
+                <View style={styles.loadingContainer}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={styles.loadingText}>Buscando...</Text>
+                </View>
+              )}
+              {searchError && !searchLoading && (
+                <View style={styles.loadingContainer}>
+                  <Text style={styles.errorText}>Error al buscar. Intenta de nuevo.</Text>
+                </View>
+              )}
+              {!searchLoading && !searchError && searchResults && (
+                <View style={styles.structuredResults}>
+                  {searchResults.venues?.length > 0 && (
+                    <View>
+                      <Text style={styles.sectionTitle}>Venues</Text>
+                      {searchResults.venues.map((v, i) => (
+                        <TouchableOpacity
+                          key={`sv-${v.id || i}`}
+                          style={[styles.resultCard, styles.structuredCard]}
+                          onPress={() => navigateToVenue(v)}
+                        >
+                          <Text style={styles.resultName}>{v.name}</Text>
+                          <Text style={styles.resultType}>{v.type}{v.city ? ` · ${v.city}` : ''}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  {searchResults.events?.length > 0 && (
+                    <View>
+                      <Text style={styles.sectionTitle}>Eventos</Text>
+                      {searchResults.events.map((e, i) => (
+                        <TouchableOpacity
+                          key={`se-${e.id || i}`}
+                          style={[styles.resultCard, styles.structuredCard]}
+                          onPress={() => navigateToEvent(e)}
+                        >
+                          <Text style={styles.resultName}>{e.title}</Text>
+                          <Text style={styles.resultType}>{e.location}{e.category ? ` · ${e.category}` : ''}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                  {searchResults.venues?.length === 0 && searchResults.events?.length === 0 && (
+                    <View style={styles.loadingContainer}>
+                      <Text style={styles.loadingText}>Sin resultados para los filtros seleccionados.</Text>
+                    </View>
+                  )}
+                </View>
+              )}
+            </>
+          )}
+
+          {/* Discovery sections — only when not loading, no error, and no structured filter active */}
+          {!hasStructuredFilter && !isLoading && !isError && discover && (
             <>
               {/* Hoy en [city] */}
               <DiscoverSection
@@ -366,7 +454,8 @@ export default function SearchScreen() {
           >
             <View style={styles.modalOverlay}>
               <GlassOverlay borderRadius={16} style={styles.modalContent}>
-                <Text style={styles.modalTitle}>Ubicación y Radio</Text>
+                <Text style={styles.modalTitle}>Filtros de Búsqueda</Text>
+                <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
 
                 <View style={styles.citySelectorWrapper}>
                   <TouchableOpacity
@@ -417,6 +506,54 @@ export default function SearchScreen() {
                   />
                 </View>
 
+                {/* Venue Type Filter */}
+                {config?.venue_types?.length > 0 && (
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Tipo de Venue</Text>
+                    <View style={styles.filterPills}>
+                      {config.venue_types.map((vt) => (
+                        <TouchableOpacity
+                          key={vt}
+                          onPress={() => setSelectedVenueType(selectedVenueType === vt ? null : vt)}
+                          style={[
+                            styles.filterPill,
+                            selectedVenueType === vt && styles.filterPillActive,
+                          ]}
+                        >
+                          <Text style={[
+                            styles.filterPillText,
+                            selectedVenueType === vt && styles.filterPillTextActive,
+                          ]}>{vt}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
+                {/* Category Filter */}
+                {config?.categories?.length > 0 && (
+                  <View style={styles.filterSection}>
+                    <Text style={styles.filterLabel}>Categoría</Text>
+                    <View style={styles.filterPills}>
+                      {config.categories.map((cat) => (
+                        <TouchableOpacity
+                          key={cat}
+                          onPress={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
+                          style={[
+                            styles.filterPill,
+                            selectedCategory === cat && styles.filterPillActive,
+                          ]}
+                        >
+                          <Text style={[
+                            styles.filterPillText,
+                            selectedCategory === cat && styles.filterPillTextActive,
+                          ]}>{cat}</Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </View>
+                )}
+
                 <Pressable
                   onPress={() => {
                     setShowCityDropdown(false);
@@ -431,6 +568,7 @@ export default function SearchScreen() {
                     <Text style={styles.okButtonText}>OK</Text>
                   </LinearGradient>
                 </Pressable>
+                </ScrollView>
               </GlassOverlay>
             </View>
           </Modal>
@@ -453,9 +591,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    alignSelf: 'center',
     gap: 8,
-    marginBottom: 10,
   },
   explorarText: {
     color: colors.text,
@@ -552,7 +688,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  modalContent: { padding: 20, width: '80%', maxHeight: '70%' },
+  modalContent: { padding: 20, width: '85%', maxHeight: '85%' },
   modalTitle: {
     fontSize: 18,
     fontFamily: 'Outfit_600SemiBold',
@@ -613,6 +749,53 @@ const styles = StyleSheet.create({
   okButtonWrapper: { marginTop: 20, alignSelf: 'center' },
   okButton: { paddingHorizontal: 32, paddingVertical: 10, borderRadius: 10, alignItems: 'center' },
   okButtonText: { color: colors.text, fontSize: 16, fontFamily: 'Outfit_600SemiBold' },
+
+  // Explore row with clear-filter button
+  explorarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 20,
+    gap: 8,
+  },
+  clearFiltersButton: {
+    backgroundColor: colors.glassLight,
+    borderRadius: 20,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: colors.primary,
+  },
+
+  // Structured search results
+  structuredResults: { marginHorizontal: 20, marginTop: 8 },
+  structuredCard: { position: 'relative', marginBottom: 10 },
+
+  // Modal filter pills
+  filterSection: { marginTop: 20 },
+  filterLabel: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+  },
+  filterPills: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  filterPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: colors.glassLight,
+  },
+  filterPillActive: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary + '33',
+  },
+  filterPillText: { color: colors.textDim, fontSize: 13, fontFamily: 'Outfit_500Medium' },
+  filterPillTextActive: { color: colors.primary },
 
   // Loading / Error
   loadingContainer: { alignItems: 'center', justifyContent: 'center', paddingVertical: 30 },
