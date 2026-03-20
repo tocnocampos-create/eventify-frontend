@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,13 @@ import colors from '../theme/colors';
 import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES } from '../utils/filters.schema';
 import { useAppConfig, getCategoryColors, getCategoryIcons, getCategoryNames, getSubcategories } from '../hooks/useAppConfig';
 
-export default function InterestSelector({ initialInterests = [], onSave, isLoading = false }) {
+export default function InterestSelector({
+  initialInterests = [],
+  onSave,
+  isLoading = false,
+  hideButton = false,
+  onSelectionChange = null,
+}) {
   const { data: config } = useAppConfig();
   const CATEGORIES = getCategoryNames(config?.categories) || ['Música', 'Teatro', 'Comedia', 'Arte', 'Cine'];
   const CATEGORY_ICONS = getCategoryIcons(config?.categories);
@@ -62,7 +68,7 @@ export default function InterestSelector({ initialInterests = [], onSave, isLoad
     });
   }, []);
 
-  const handleSave = useCallback(() => {
+  const buildInterests = useCallback(() => {
     const interests = [];
     for (const [category, subtypes] of Object.entries(selected)) {
       if (subtypes.size === 0) {
@@ -73,8 +79,16 @@ export default function InterestSelector({ initialInterests = [], onSave, isLoad
         }
       }
     }
-    onSave(interests);
-  }, [selected, onSave]);
+    return interests;
+  }, [selected]);
+
+  useEffect(() => {
+    if (onSelectionChange) onSelectionChange(buildInterests());
+  }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSave = useCallback(() => {
+    onSave(buildInterests());
+  }, [buildInterests, onSave]);
 
   const hasSelection = Object.keys(selected).length > 0;
 
@@ -150,18 +164,20 @@ export default function InterestSelector({ initialInterests = [], onSave, isLoad
         })}
       </View>
 
-      <TouchableOpacity
-        style={[styles.confirmButton, !hasSelection && styles.confirmButtonDisabled]}
-        onPress={handleSave}
-        disabled={!hasSelection || isLoading}
-        activeOpacity={0.8}
-      >
-        {isLoading ? (
-          <ActivityIndicator color="#22003D" />
-        ) : (
-          <Text style={styles.confirmText}>Confirmar</Text>
-        )}
-      </TouchableOpacity>
+      {!hideButton && (
+        <TouchableOpacity
+          style={[styles.confirmButton, !hasSelection && styles.confirmButtonDisabled]}
+          onPress={handleSave}
+          disabled={!hasSelection || isLoading}
+          activeOpacity={0.8}
+        >
+          {isLoading ? (
+            <ActivityIndicator color="#22003D" />
+          ) : (
+            <Text style={styles.confirmText}>Confirmar</Text>
+          )}
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
