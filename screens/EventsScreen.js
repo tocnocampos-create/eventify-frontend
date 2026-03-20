@@ -46,6 +46,50 @@ dayjs.locale('es');
 import { isLive } from '../utils/filtering.js';
 import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES, normalizeEventType } from '../utils/filters.schema.js';
 
+// ── Pill-category keyword filter ──────────────────────────────────────────────
+// Maps each SearchScreen pill key to the keywords/types/categories to match.
+// Priority: keywords array (event.keywords) → event.type → event.category
+const PILL_CATEGORY_FILTER_MAP = {
+  'Nacional':       { keywords: ['folclore', 'folklore', 'cueca', 'música nacional',
+                                  'banda chilena', 'artista chileno', 'cumbia chilena', 'latin folk'] },
+  'Vida Nocturna':  { keywords: ['vida nocturna', 'dj', 'club', 'boliche', 'after', 'nocturno'] },
+  'Al aire libre':  { keywords: ['aire libre', 'outdoor', 'parque', 'festival', 'anfiteatro'] },
+  'Festivales':     { keywords: ['festival', 'aire libre', 'outdoor', 'anfiteatro'] },
+  'Barrios':        { keywords: ['barrio italia', 'lastarria', 'bellavista', 'brasil', 'yungay',
+                                  'patrimonio', 'ruta cultural'] },
+  'City Tour':      { keywords: ['city tour', 'tour', 'turismo', 'visita guiada',
+                                  'centro histórico', 'ruta patrimonial', 'la moneda'] },
+  'Familiar':       { keywords: ['familiar', 'infantil', 'niños', 'kids', 'todas las edades'] },
+  'Sunsets':        { keywords: ['sunset', 'atardecer', 'happy hour', 'rooftop', 'terraza'] },
+  'Ferias':         { keywords: ['feria', 'mercado', 'bazar', 'food market'] },
+  'Jazz':           { keywords: ['jazz', 'blues', 'swing'], types: ['Jazz'] },
+  'Comedia':        { keywords: ['comedia', 'stand up', 'humor'], categories: ['Comedia'] },
+  'Teatro':         { keywords: ['teatro', 'obra', 'drama', 'tragicomedia', 'monólogo'],
+                      categories: ['Teatro'] },
+  'Cine':           { keywords: ['cine', 'película', 'film', 'proyección'],
+                      categories: ['Cine'] },
+  'Museos':         { keywords: ['museo', 'colección'] },
+  'Galerías':       { keywords: ['galería', 'arte', 'exposición'] },
+};
+
+/**
+ * Returns a predicate function for the given pill key.
+ * Checks (in order): event.keywords array, event.type, event.category.
+ */
+function getCategoryFilter(categoryKey) {
+  const spec = PILL_CATEGORY_FILTER_MAP[categoryKey];
+  if (!spec) return null;
+  return (event) => {
+    const kwsLower = (event.keywords || []).map(k => k.toLowerCase());
+    if (spec.keywords?.some(kw => kwsLower.includes(kw.toLowerCase()))) return true;
+    const typeLower = (event.type || '').toLowerCase();
+    if (spec.types?.some(t => t.toLowerCase() === typeLower)) return true;
+    const catLower = (event.category || '').toLowerCase();
+    if (spec.categories?.some(c => c.toLowerCase() === catLower)) return true;
+    return false;
+  };
+}
+
 function SaveButton({ eventId }) {
   const { data: isSaved } = useIsEventSaved(eventId);
   const { mutate: toggle } = useToggleSaveEvent(eventId);
@@ -112,6 +156,11 @@ export default function EventsScreen({ route }) {
   const [selectedDateTag, setSelectedDateTag] = useState('ALL');
   const [showDropdown, setShowDropdown] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
+  // Pill-based filters from SearchScreen navigation
+  const [venueTypeFilter, setVenueTypeFilter] = useState(route?.params?.initialVenueType || null);
+  const [pillTimeFilter, setPillTimeFilter] = useState(route?.params?.pillTimeFilter || null);
+  const [pillKeywordFilter, setPillKeywordFilter] = useState(route?.params?.pillKeywordFilter || null);
+  const [pillCategoryKey, setPillCategoryKey] = useState(route?.params?.pillCategoryKey || null);
 
   const navigation = useNavigation();
 
@@ -126,6 +175,21 @@ export default function EventsScreen({ route }) {
     if (route.params.initialQuery) {
       setSearchQuery(route.params.initialQuery);
       setDebouncedQuery(route.params.initialQuery);
+    }
+    if (route.params.initialTypes) {
+      setSelectedTypes(new Set(route.params.initialTypes));
+    }
+    if (route.params.initialVenueType) {
+      setVenueTypeFilter(route.params.initialVenueType);
+    }
+    if (route.params.pillTimeFilter) {
+      setPillTimeFilter(route.params.pillTimeFilter);
+    }
+    if (route.params.pillKeywordFilter) {
+      setPillKeywordFilter(route.params.pillKeywordFilter);
+    }
+    if (route.params.pillCategoryKey) {
+      setPillCategoryKey(route.params.pillCategoryKey);
     }
     setParamsApplied(true);
   }, [route?.params]);
@@ -154,12 +218,14 @@ export default function EventsScreen({ route }) {
     const { startDate, endDate } = getDateRange(selectedDateTag);
     return {
       q: debouncedQuery || undefined,
+      venueType: venueTypeFilter || undefined,
+      keywordCategory: pillCategoryKey || undefined,
       startDate,
       endDate,
       returnType: 'both',
       limit: 200,
     };
-  }, [debouncedQuery, selectedDateTag]);
+  }, [debouncedQuery, selectedDateTag, venueTypeFilter, pillCategoryKey]);
 
   // API data via backend search
   const { data: searchData, isLoading } = useSearch(searchParams);
@@ -234,6 +300,10 @@ export default function EventsScreen({ route }) {
     setSelectedCategories(new Set());
     setSelectedTypes(new Set());
     setSelectedDateTag('ALL');
+    setPillCategoryKey(null);
+    setPillKeywordFilter(null);
+    setPillTimeFilter(null);
+    setVenueTypeFilter(null);
   };
 
   // Clear filters for the active filter category
@@ -297,25 +367,55 @@ export default function EventsScreen({ route }) {
       list = list.filter((e) => isLive(e));
     }
 
-    const hasCategoryFilters = selectedCategories.size > 0;
-    const hasTypeFilters = selectedTypes.size > 0;
+    // Pill category filter — keyword-based matching against event.keywords/type/category
+    if (pillCategoryKey) {
+      const pillFilter = getCategoryFilter(pillCategoryKey);
+      if (pillFilter) {
+        list = list.filter(pillFilter);
+      }
+    } else {
+      // Standard category/type filter (filter icon row in EventsScreen)
+      const hasCategoryFilters = selectedCategories.size > 0;
+      const hasTypeFilters = selectedTypes.size > 0;
 
-    if (hasCategoryFilters || hasTypeFilters) {
+      if (hasCategoryFilters || hasTypeFilters) {
+        list = list.filter((e) => {
+          const evCatCanonical = normalizeCategory(e?.category);
+          const evTypeNormalized = normalizeEventType(e?.type);
+
+          const matchesCategory = hasCategoryFilters && selectedCategories.has(evCatCanonical);
+
+          const eventTypeKey = `${evCatCanonical}::${evTypeNormalized}`;
+          const matchesType = hasTypeFilters && selectedTypes.has(eventTypeKey);
+
+          return matchesCategory || matchesType;
+        });
+      }
+    }
+
+    // Evening filter (Sunsets pill: events starting at or after 18:00)
+    if (pillTimeFilter === 'evening') {
       list = list.filter((e) => {
-        const evCatCanonical = normalizeCategory(e?.category);
-        const evTypeNormalized = normalizeEventType(e?.type);
+        if (!e.timeStart) return false;
+        const hour = parseInt(e.timeStart.split(':')[0], 10);
+        return !isNaN(hour) && hour >= 18;
+      });
+    }
 
-        const matchesCategory = hasCategoryFilters && selectedCategories.has(evCatCanonical);
-
-        const eventTypeKey = `${evCatCanonical}::${evTypeNormalized}`;
-        const matchesType = hasTypeFilters && selectedTypes.has(eventTypeKey);
-
-        return matchesCategory || matchesType;
+    // Legacy keyword filter (pillKeywordFilter param from SearchScreen)
+    if (pillKeywordFilter && pillKeywordFilter.length > 0) {
+      list = list.filter((e) => {
+        const searchable = [e.title, e.description, ...(e.keywords || [])]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return pillKeywordFilter.some((kw) => searchable.includes(kw.toLowerCase()));
       });
     }
 
     return list;
-  }, [eventsApiData, selectedDateTag, selectedCategories, selectedTypes]);
+  }, [eventsApiData, selectedDateTag, selectedCategories, selectedTypes,
+      pillTimeFilter, pillKeywordFilter, pillCategoryKey]);
 
   // Check if a filter category is active
   const isFilterActive = (filterName) => {

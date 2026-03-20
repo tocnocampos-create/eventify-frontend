@@ -10,8 +10,8 @@ import { assignDateTags } from '../utils/filtering';
  */
 export function useSearch(params = {}) {
   const hasFilter = useMemo(() => {
-    const { q, venueType, eventType, eventCategory, startDate, endDate, minLat, maxLat, minLon, maxLon } = params;
-    return !!(q || venueType || eventType || eventCategory || startDate || endDate || minLat != null || maxLat != null || minLon != null || maxLon != null);
+    const { q, venueType, eventType, eventCategory, keywordCategory, startDate, endDate, minLat, maxLat, minLon, maxLon } = params;
+    return !!(q || venueType || eventType || eventCategory || keywordCategory || startDate || endDate || minLat != null || maxLat != null || minLon != null || maxLon != null);
   }, [params]);
 
   return useQuery({

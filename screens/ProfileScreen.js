@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Switch,
   Modal,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -26,7 +25,7 @@ import GlassOverlay from '../components/home/GlassOverlay';
 import InterestSelector from '../components/InterestSelector';
 import colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
-import { useUserInterests, useSetInterests } from '../hooks/useUserPreferences';
+import { useUserInterests, useSetInterests, useUserSettings, useUpdateSettings } from '../hooks/useUserPreferences';
 import { useAppConfig, getCategoryColors, getCategoryIcons } from '../hooks/useAppConfig';
 
 const AVATAR_COLORS = [
@@ -56,8 +55,15 @@ export default function ProfileScreen({ navigation }) {
   const { data: config } = useAppConfig();
   const CATEGORY_COLORS = getCategoryColors(config?.categories);
   const CATEGORY_ICONS = getCategoryIcons(config?.categories);
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const { data: settings } = useUserSettings();
+  const updateSettingsMutation = useUpdateSettings();
   const [interestModalVisible, setInterestModalVisible] = useState(false);
+
+  const notificationsEnabled = settings?.notifications_enabled ?? true;
+
+  const handleNotificationsToggle = (value) => {
+    updateSettingsMutation.mutate({ notifications_enabled: value });
+  };
 
   const handleSaveInterests = async (newInterests) => {
     await setInterestsMutation.mutateAsync(newInterests);
@@ -68,7 +74,7 @@ export default function ProfileScreen({ navigation }) {
     {
       title: 'Mis Experiencias',
       icon: Ticket,
-      onPress: () => Alert.alert('Próximamente', 'Esta función estará disponible pronto.'),
+      onPress: () => navigation.navigate('MisExperiencias'),
     },
     {
       title: 'Mi Agenda',
@@ -146,7 +152,8 @@ export default function ProfileScreen({ navigation }) {
             <Text style={styles.optionText}>Notificaciones</Text>
             <Switch
               value={notificationsEnabled}
-              onValueChange={setNotificationsEnabled}
+              onValueChange={handleNotificationsToggle}
+              disabled={updateSettingsMutation.isPending}
               thumbColor={notificationsEnabled ? colors.primary : '#888'}
               trackColor={{ false: '#444', true: colors.primaryDark }}
             />

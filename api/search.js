@@ -9,6 +9,7 @@ export async function fetchSearch({
   venueType,
   eventType,
   eventCategory,
+  keywordCategory,
   startDate,
   endDate,
   minLat,
@@ -25,6 +26,7 @@ export async function fetchSearch({
   if (venueType) params.venue_type = venueType;
   if (eventType) params.event_type = eventType;
   if (eventCategory) params.event_category = eventCategory;
+  if (keywordCategory) params.keyword_category = keywordCategory;
   if (startDate) params.start_date = startDate;
   if (endDate) params.end_date = endDate;
   if (minLat != null) params.min_lat = minLat;

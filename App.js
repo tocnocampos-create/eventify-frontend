@@ -25,6 +25,7 @@ import EventDetailScreen from './screens/EventDetailScreen';
 import VenueScreen from './screens/VenueScreen';
 import OnboardingInterestsScreen from './screens/OnboardingInterestsScreen';
 import MyAgendaScreen from './screens/MyAgendaScreen';
+import MisExperienciasScreen from './screens/MisExperienciasScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -75,6 +76,7 @@ function ProfileStack() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="ProfileMain" component={ProfileScreen} />
       <Stack.Screen name="MyAgenda" component={MyAgendaScreen} />
+      <Stack.Screen name="MisExperiencias" component={MisExperienciasScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="VenueScreen" component={VenueScreen} />
     </Stack.Navigator>

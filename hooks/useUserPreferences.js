@@ -11,6 +11,9 @@ import {
   setInterests,
   fetchInterests,
   fetchNotificationFeed,
+  fetchSettings,
+  updateSettings,
+  fetchMyReviews,
 } from '../api/userPreferences';
 import { transformVenue } from '../api/transformers';
 
@@ -111,5 +114,33 @@ export function useNotificationFeed() {
   return useQuery({
     queryKey: ['notificationFeed'],
     queryFn: fetchNotificationFeed,
+  });
+}
+
+// ── Settings ──────────────────────────────────────────────────
+
+export function useUserSettings() {
+  return useQuery({
+    queryKey: ['userSettings'],
+    queryFn: fetchSettings,
+  });
+}
+
+export function useUpdateSettings() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: updateSettings,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userSettings'] });
+    },
+  });
+}
+
+// ── My reviews ────────────────────────────────────────────────
+
+export function useMyReviews() {
+  return useQuery({
+    queryKey: ['myReviews'],
+    queryFn: fetchMyReviews,
   });
 }

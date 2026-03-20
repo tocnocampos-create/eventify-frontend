@@ -62,3 +62,22 @@ export async function fetchNotificationFeed() {
   const { data } = await apiClient.get('/me/feed');
   return data;
 }
+
+// ── Settings ──────────────────────────────────────────────────
+
+export async function fetchSettings() {
+  const { data } = await apiClient.get('/me/settings');
+  return data;
+}
+
+export async function updateSettings(settings) {
+  const { data } = await apiClient.put('/me/settings', settings);
+  return data;
+}
+
+// ── My reviews ────────────────────────────────────────────────
+
+export async function fetchMyReviews() {
+  const { data } = await apiClient.get('/me/reviews');
+  return data;
+}

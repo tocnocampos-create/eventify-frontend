@@ -38,6 +38,27 @@ import DiscoverVenueCard from '../components/discover/DiscoverVenueCard';
 import DiscoverSection from '../components/discover/DiscoverSection';
 import CategoryGrid from '../components/discover/CategoryGrid';
 
+// Maps each SearchScreen pill key to the params forwarded to EventsScreen.
+// pillCategoryKey drives both client-side (getCategoryFilter) and server-side
+// (keyword_category backend param) filtering against the events.keywords array.
+const SEARCH_CATEGORY_MAP = {
+  'Jazz':          { pillCategoryKey: 'Jazz' },
+  'Comedia':       { pillCategoryKey: 'Comedia' },
+  'Nacional':      { pillCategoryKey: 'Nacional' },
+  'Teatro':        { pillCategoryKey: 'Teatro' },
+  'Vida Nocturna': { pillCategoryKey: 'Vida Nocturna' },
+  'Galerías':      { pillCategoryKey: 'Galerías' },
+  'Barrios':       { pillCategoryKey: 'Barrios' },
+  'Festivales':    { pillCategoryKey: 'Festivales' },
+  'Cine':          { pillCategoryKey: 'Cine' },
+  'Museos':        { pillCategoryKey: 'Museos' },
+  'Al aire libre': { pillCategoryKey: 'Al aire libre' },
+  'Sunsets':       { pillCategoryKey: 'Sunsets' },
+  'Familiar':      { pillCategoryKey: 'Familiar' },
+  'Ferias':        { pillCategoryKey: 'Ferias' },
+  'City Tour':     { pillCategoryKey: 'City Tour' },
+};
+
 export default function SearchScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [location, setLocation] = useState(null);
@@ -145,9 +166,19 @@ export default function SearchScreen() {
     });
 
   const handleCategoryPress = (categoryKey) => {
+    const key = (categoryKey || '').trim();
+    const spec = SEARCH_CATEGORY_MAP[key] || {};
     navigation.navigate('Events', {
       screen: 'EventsMain',
-      params: { initialCategory: categoryKey },
+      params: {
+        pillCategoryKey: spec.pillCategoryKey || null,
+        initialCategory: spec.category || null,
+        initialTypes: spec.types || null,
+        initialVenueType: spec.initialVenueType || null,
+        pillTimeFilter: spec.pillTimeFilter || null,
+        pillKeywordFilter: spec.pillKeywordFilter || null,
+        initialQuery: spec.initialQuery || null,
+      },
     });
   };
 

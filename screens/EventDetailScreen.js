@@ -550,7 +550,7 @@ export default function EventDetailScreen() {
 
           {!normalizedCoord && (
             <Text style={styles.mapNote}>
-              No hay coordenadas exactas para este evento ni para su venue. Carga lat/long en <Text style={{ fontWeight: '700' }}>events.js</Text> o en <Text style={{ fontWeight: '700' }}>venues.js</Text>.
+              Ubicación no disponible para este evento.
             </Text>
           )}
         </View>
