@@ -448,7 +448,7 @@ export default function HomeScreen() {
               activeDateFilterDisplay={filterState.activeDateFilterDisplay}
               selectedDays={filterState.selectedDays}
             />
-            <View style={{ flex: 1, marginLeft: 8 }}>
+            <View style={styles.filterPillsArea}>
               <FilterPills filters={filterState.allActiveFilters} onRemove={handleRemoveFilter} />
             </View>
           </>
@@ -567,6 +567,14 @@ const styles = StyleSheet.create({
   filtersRight: {
     flex: 1,
     maxWidth: '45%',
+  },
+  // Pills area when filters are active (to the right of DateSelector).
+  // overflow: 'hidden' is the hard boundary that prevents the inner ScrollView
+  // from bleeding leftward over the DateSelector when many pills are present.
+  filterPillsArea: {
+    flex: 1,
+    marginLeft: 8,
+    overflow: 'hidden',
   },
   // Find My dot styles (native only)
   findMyDotWrapper: {

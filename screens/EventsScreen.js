@@ -74,18 +74,30 @@ const PILL_CATEGORY_FILTER_MAP = {
 
 /**
  * Returns a predicate function for the given pill key.
- * Checks (in order): event.keywords array, event.type, event.category.
+ *
+ * Pills that declare explicit `categories` (Teatro, Comedia, Cine) match ONLY
+ * on event.category. Keyword matching is intentionally skipped for these because
+ * event names often contain venue names (e.g. "Kevin Kaarl - Teatro Coliseo"),
+ * which causes the classifier to add venue-derived keywords like "teatro" to a
+ * Música event — making it incorrectly match a Teatro category filter.
+ *
+ * Keyword-only pills (Al aire libre, Jazz, Nacional, etc.) continue to match
+ * against event.keywords and event.type as before.
  */
 function getCategoryFilter(categoryKey) {
   const spec = PILL_CATEGORY_FILTER_MAP[categoryKey];
   if (!spec) return null;
   return (event) => {
+    // Category-based pills: exact category match only — never use keywords.
+    if (spec.categories?.length) {
+      const catLower = (event.category || '').toLowerCase();
+      return spec.categories.some(c => c.toLowerCase() === catLower);
+    }
+    // Keyword/type-only pills (Al aire libre, Jazz, Nacional, Festivales, etc.)
     const kwsLower = (event.keywords || []).map(k => k.toLowerCase());
     if (spec.keywords?.some(kw => kwsLower.includes(kw.toLowerCase()))) return true;
     const typeLower = (event.type || '').toLowerCase();
     if (spec.types?.some(t => t.toLowerCase() === typeLower)) return true;
-    const catLower = (event.category || '').toLowerCase();
-    if (spec.categories?.some(c => c.toLowerCase() === catLower)) return true;
     return false;
   };
 }
@@ -213,13 +225,20 @@ export default function EventsScreen({ route }) {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  // Build search params for backend
+  // Build search params for backend.
+  // Pills with explicit categories (Teatro, Comedia, Cine) must use eventCategory
+  // so the backend runs Event.category == exact_match. Using keywordCategory for
+  // these would trigger keyword array-overlap, which matches music events whose
+  // names contain a venue name like "Teatro Coliseo".
   const searchParams = useMemo(() => {
     const { startDate, endDate } = getDateRange(selectedDateTag);
+    const pillSpec = pillCategoryKey ? PILL_CATEGORY_FILTER_MAP[pillCategoryKey] : null;
+    const isCategoryPill = pillSpec?.categories?.length > 0;
     return {
       q: debouncedQuery || undefined,
       venueType: venueTypeFilter || undefined,
-      keywordCategory: pillCategoryKey || undefined,
+      keywordCategory: (pillCategoryKey && !isCategoryPill) ? pillCategoryKey : undefined,
+      eventCategory: isCategoryPill ? pillSpec.categories[0] : undefined,
       startDate,
       endDate,
       returnType: 'both',

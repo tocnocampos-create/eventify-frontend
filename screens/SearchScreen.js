@@ -566,21 +566,24 @@ export default function SearchScreen() {
                   <View style={styles.filterSection}>
                     <Text style={styles.filterLabel}>Categoría</Text>
                     <View style={styles.filterPills}>
-                      {config.categories.map((cat) => (
-                        <TouchableOpacity
-                          key={cat}
-                          onPress={() => setSelectedCategory(selectedCategory === cat ? null : cat)}
-                          style={[
-                            styles.filterPill,
-                            selectedCategory === cat && styles.filterPillActive,
-                          ]}
-                        >
-                          <Text style={[
-                            styles.filterPillText,
-                            selectedCategory === cat && styles.filterPillTextActive,
-                          ]}>{cat}</Text>
-                        </TouchableOpacity>
-                      ))}
+                      {config.categories.map((cat) => {
+                        const catName = typeof cat === 'object' ? cat.name : cat;
+                        return (
+                          <TouchableOpacity
+                            key={catName}
+                            onPress={() => setSelectedCategory(selectedCategory === catName ? null : catName)}
+                            style={[
+                              styles.filterPill,
+                              selectedCategory === catName && styles.filterPillActive,
+                            ]}
+                          >
+                            <Text style={[
+                              styles.filterPillText,
+                              selectedCategory === catName && styles.filterPillTextActive,
+                            ]}>{catName}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
                     </View>
                   </View>
                 )}

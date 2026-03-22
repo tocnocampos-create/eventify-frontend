@@ -15,6 +15,7 @@ export default function FilterPills({ filters, onRemove, style }) {
       ref={dragRef}
       horizontal
       showsHorizontalScrollIndicator={false}
+      style={styles.scrollView}
       contentContainerStyle={[styles.content, style]}
     >
       {filters.map((filterItem, index) => {
@@ -40,6 +41,14 @@ export default function FilterPills({ filters, onRemove, style }) {
 }
 
 const styles = StyleSheet.create({
+  // flex: 1 is critical — without it the ScrollView sizes to its natural content
+  // width (all pills combined) instead of filling the available flex space.
+  // When content overflows the flex allocation it renders on top of the
+  // DateSelector (which precedes it in the DOM), making the date selector
+  // unresponsive to taps (useDragScroll's mousedown listener intercepts them).
+  scrollView: {
+    flex: 1,
+  },
   content: {
     alignItems: 'center',
     paddingRight: 8,
