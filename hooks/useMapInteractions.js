@@ -150,7 +150,7 @@ export default function useMapInteractions({
   const focusEventOnMap = useCallback((e) => {
     const latlng = getEventLatLng(e);
     if (!latlng || !mapRef.current) return;
-    setSelectedEventPin({ title: e.title, category: e.category, ...latlng });
+    setSelectedEventPin({ title: e.title, category: e.category, venueName: e.venueName || null, ...latlng });
     setSelectedVenue(null);
     centerMapOnEvent(e, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
     setShowPanel(false);

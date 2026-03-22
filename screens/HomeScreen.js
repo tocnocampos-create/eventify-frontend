@@ -270,11 +270,16 @@ export default function HomeScreen() {
       }
       grouped[ev.venueName].eventCount += 1;
     });
-    return Object.values(grouped).map((vm) => ({
+    const allMarkers = Object.values(grouped).map((vm) => ({
       ...vm,
       pinColor: getVenuePinColor(vm.venueType),
     }));
-  }, [filterState.filteredEvents, venues]);
+    // Hide venue markers that would overlap with an active selected pin.
+    const hiddenVenueName = mapState.selectedEventPin?.venueName || mapState.selectedVenue?.name;
+    return hiddenVenueName
+      ? allMarkers.filter((vm) => vm.venueName !== hiddenVenueName)
+      : allMarkers;
+  }, [filterState.filteredEvents, venues, mapState.selectedEventPin, mapState.selectedVenue]);
 
   const initialRegion = Platform.OS === 'web'
     ? {
