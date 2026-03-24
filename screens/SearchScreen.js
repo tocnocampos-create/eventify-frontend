@@ -165,8 +165,22 @@ export default function SearchScreen() {
       menuPdfUrl: venue.menuPdfUrl,
     });
 
+  // All pills now navigate to CategoryScreen
+  const CATEGORY_SCREEN_KEYS = new Set([
+    'Jazz', 'Comedia', 'Teatro', 'Vida Nocturna',
+    'Nacional', 'Barrios', 'Al aire libre', 'Festivales',
+    'City Tour', 'Museos', 'Galerías', 'Cine',
+    'Sunsets', 'Ferias', 'Familiar',
+  ]);
+
   const handleCategoryPress = (categoryKey) => {
     const key = (categoryKey || '').trim();
+
+    if (CATEGORY_SCREEN_KEYS.has(key)) {
+      navigation.navigate('CategoryScreen', { categoryKey: key });
+      return;
+    }
+
     const spec = SEARCH_CATEGORY_MAP[key] || {};
     navigation.navigate('Events', {
       screen: 'EventsMain',

@@ -23,6 +23,7 @@ dayjs.locale('es');
 import { useVenueDetail } from '../hooks/useVenueDetail';
 import { useVenueReviews } from '../hooks/useVenueReviews';
 import { normalizeVenueType } from '../utils/venueTypes';
+import { formatPrice } from '../utils/mapHelpers';
 import ReviewModal from '../components/ReviewModal';
 import useDragScroll from '../hooks/useDragScroll';
 import { useIsFollowingVenue, useToggleFollowVenue } from '../hooks/useUserPreferences';
@@ -200,7 +201,7 @@ export default function VenueScreen() {
           <Text style={styles.eventTitle}>{item.title}</Text>
           {item.price != null && (
             <Text style={styles.eventPrice}>
-              {item.price === 0 ? 'Gratis' : `Desde $${item.price}`}
+              {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
             </Text>
           )}
           <Text style={styles.eventDate}>{formatEventDateTime(item)}</Text>

@@ -3,7 +3,7 @@ import { View, Text, Image, TouchableOpacity, StyleSheet, Platform } from 'react
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, MapPin } from 'lucide-react-native';
 import colors from '../../theme/colors';
-import { formatEventDateTime } from '../../utils/mapHelpers';
+import { formatEventDateTime, formatPrice } from '../../utils/mapHelpers';
 import { normalizeCategory } from '../../utils/filters.schema';
 import { categoryColors } from '../../utils/pinColors';
 
@@ -37,7 +37,9 @@ export default function DiscoverEventCard({ event, badgeColors = {}, onPress }) 
           </View>
         )}
         {event.price != null && (
-          <Text style={styles.price}>Desde ${event.price}</Text>
+          <Text style={styles.price}>
+            {event.price === 0 ? 'Gratis' : `Desde ${formatPrice(event.price)}`}
+          </Text>
         )}
       </View>
       <LinearGradient

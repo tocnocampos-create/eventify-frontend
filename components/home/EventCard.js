@@ -6,7 +6,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, MapPin } from 'lucide-react-native';
 import colors from '../../theme/colors';
-import { formatEventDateTime } from '../../utils/mapHelpers';
+import { formatEventDateTime, formatPrice } from '../../utils/mapHelpers';
 import { normalizeCategory } from '../../utils/filters.schema';
 import { categoryColors } from '../../utils/pinColors';
 
@@ -70,6 +70,11 @@ export default function EventCard({ item, index, isSelected, onPress }) {
               <MapPin size={12} color={colors.textDim} />
               <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
             </View>
+          )}
+          {item.price != null && (
+            <Text style={styles.price}>
+              {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
+            </Text>
           )}
         </View>
         <LinearGradient
@@ -157,6 +162,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Outfit_400Regular',
     color: colors.textDim,
+  },
+  price: {
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+    color: colors.primary,
+    marginTop: 5,
   },
   bottomAccent: {
     height: 2,

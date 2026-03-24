@@ -26,6 +26,7 @@ import VenueScreen from './screens/VenueScreen';
 import OnboardingInterestsScreen from './screens/OnboardingInterestsScreen';
 import MyAgendaScreen from './screens/MyAgendaScreen';
 import MisExperienciasScreen from './screens/MisExperienciasScreen';
+import CategoryScreen from './screens/CategoryScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -54,6 +55,7 @@ function SearchStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="SearchMain" component={SearchScreen} />
+      <Stack.Screen name="CategoryScreen" component={CategoryScreen} />
       <Stack.Screen name="EventDetail" component={EventDetailScreen} />
       <Stack.Screen name="VenueScreen" component={VenueScreen} />
     </Stack.Navigator>

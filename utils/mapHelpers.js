@@ -57,6 +57,7 @@ export const getEventPrice = (event) => {
 };
 
 export const formatPrice = (price) => {
+  if (price == null) return null;
   if (price === 0) return 'Gratis';
-  return `$${price.toLocaleString('es-CL')}`;
+  return `$ ${Math.round(price).toLocaleString('es-CL')}`;
 };

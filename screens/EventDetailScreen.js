@@ -23,6 +23,7 @@ import 'dayjs/locale/es';
 dayjs.locale('es');
 import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
+import { formatPrice } from '../utils/mapHelpers';
 import ReviewModal from '../components/ReviewModal';
 import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
 import { GOOGLE_MAPS_API_KEY } from '../config/env';
@@ -173,9 +174,9 @@ function ProductCard({ item }) {
       )}
       <TypeBadge type={item?.type} />
       <Text style={styles.productTitle} numberOfLines={2}>{item?.title || 'Producto'}</Text>
-      {!!item?.price && (
+      {item?.price != null && (
         <Text style={styles.productPrice}>
-          {item.currency || '$'}{item.price}
+          {formatPrice(item.price)}
         </Text>
       )}
     </TouchableOpacity>
@@ -456,7 +457,7 @@ export default function EventDetailScreen() {
 
         <Text style={styles.dateText}>
           {displayDateTime}
-          {event?.price ? ` · Desde ${event.price}` : ''}
+          {event?.price != null ? ` · ${event.price === 0 ? 'Gratis' : `Desde ${formatPrice(event.price)}`}` : ''}
         </Text>
 
         {/* Ubicación (chip clickable) */}
