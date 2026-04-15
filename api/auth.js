@@ -19,3 +19,13 @@ export const refreshTokenApi = async (refresh_token) => {
   const { data } = await apiClient.post('/auth/refresh', { refresh_token });
   return data;
 };
+
+export const forgotPasswordApi = async ({ email }) => {
+  const { data } = await apiClient.post('/auth/forgot-password', { email });
+  return data;
+};
+
+export const resetPasswordApi = async ({ email, code, new_password }) => {
+  const { data } = await apiClient.post('/auth/reset-password', { email, code, new_password });
+  return data;
+};

@@ -124,7 +124,7 @@ export default function LoginScreen({ navigation }) {
             loading={loginMutation.isPending}
           />
 
-          <TouchableOpacity>
+          <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')}>
             <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
