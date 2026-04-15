@@ -7,6 +7,7 @@ export async function fetchDiscover({ lat, lon, city, radiusKm } = {}) {
   if (city) params.city = city;
   if (radiusKm != null) params.radius_km = radiusKm;
 
+  console.log('[fetchDiscover] sending params:', JSON.stringify(params));
   const { data } = await apiClient.get('/discover', { params });
   return data;
 }

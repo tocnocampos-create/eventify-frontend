@@ -47,18 +47,27 @@ export default function EventCard({ item, index, isSelected, onPress }) {
         isSelected && styles.cardSelected,
         animatedCardStyle,
       ]}>
-        {!!item.image && (
-          <View style={styles.imageContainer}>
-            <Image source={{ uri: item.image }} style={styles.image} />
+        <View style={styles.imageContainer}>
+          {!!item.image ? (
+            <>
+              <Image source={{ uri: item.image }} style={styles.image} />
+              <LinearGradient
+                colors={['transparent', 'rgba(15, 5, 35, 0.85)']}
+                style={styles.imageScrim}
+              />
+            </>
+          ) : (
             <LinearGradient
-              colors={['transparent', 'rgba(15, 5, 35, 0.85)']}
-              style={styles.imageScrim}
+              colors={[catColor, 'rgba(15, 5, 35, 0.95)']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={styles.imagePlaceholder}
             />
-            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-              <Text style={styles.badgeText}>{category}</Text>
-            </View>
+          )}
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            <Text style={styles.badgeText}>{category}</Text>
           </View>
-        )}
+        </View>
         <View style={styles.content}>
           <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
           <View style={styles.metaRow}>
@@ -95,6 +104,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.glassBorder,
+    minHeight: 220,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -122,8 +132,13 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
+    height: 120,
   },
   image: {
+    width: '100%',
+    height: 120,
+  },
+  imagePlaceholder: {
     width: '100%',
     height: 120,
   },

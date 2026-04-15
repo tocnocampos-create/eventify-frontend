@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, SlidersHorizontal, MapPin, X } from 'lucide-react-native';
+import { Search, SlidersHorizontal, MapPin, Footprints, X } from 'lucide-react-native';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
 
@@ -36,7 +36,11 @@ export default function MapSearchBar({
           onPress={onToggleBarrios}
           activeOpacity={0.7}
         >
-          <MapPin size={20} color="#fff" />
+          {showBarrios ? (
+            <Footprints size={20} color="#fff" />
+          ) : (
+            <MapPin size={20} color="#fff" />
+          )}
         </TouchableOpacity>
         {showFilters ? (
           <TouchableOpacity onPress={onToggleFilters} activeOpacity={0.7}>

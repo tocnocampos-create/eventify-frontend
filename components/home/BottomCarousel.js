@@ -1,12 +1,12 @@
 import React, { useEffect } from 'react';
 import {
-  View, Text, FlatList, ScrollView, Platform, StyleSheet,
+  View, Text, FlatList, ScrollView, Platform, StyleSheet, TouchableOpacity,
 } from 'react-native';
 import Animated, {
   useSharedValue, useAnimatedStyle, withSpring,
   interpolate, Extrapolation,
 } from 'react-native-reanimated';
-import { CalendarX2 } from 'lucide-react-native';
+import { CalendarX2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventCard from './EventCard';
 import colors from '../../theme/colors';
@@ -30,6 +30,11 @@ export default function BottomCarousel({
   onScrollEndDrag,
   onScroll,
   onMomentumScrollEnd,
+  // Venue panel
+  showVenuePanel,
+  venueEvents,
+  selectedVenueMeta,
+  onCloseVenuePanel,
 }) {
   const dragRef = useDragScroll(flatListRef);
   const insets = useSafeAreaInsets();
@@ -95,7 +100,53 @@ export default function BottomCarousel({
       )}
 
       {/* ─── Cards or empty state ─── */}
-      {hasEvents ? (
+      {showVenuePanel ? (
+        <>
+          {/* Venue header */}
+          <View style={styles.venueHeader}>
+            <Text style={styles.venueHeaderText} numberOfLines={1}>
+              En {selectedVenueMeta?.name}:
+            </Text>
+            <TouchableOpacity onPress={onCloseVenuePanel} style={styles.venueCloseBtn} activeOpacity={0.7}>
+              <X size={18} color="#fff" />
+            </TouchableOpacity>
+          </View>
+          {venueEvents && venueEvents.length > 0 ? (
+            <FlatList
+              horizontal
+              data={venueEvents}
+              renderItem={({ item, index }) => (
+                <EventCard
+                  item={item}
+                  index={index}
+                  isSelected={false}
+                  onPress={(ev) => onCardPress(ev, null)}
+                />
+              )}
+              keyExtractor={(item) => item.id.toString()}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 12 }}
+              snapToInterval={270}
+              snapToAlignment="start"
+              decelerationRate={Platform.OS === 'web' ? 0.985 : 'fast'}
+              scrollEventThrottle={16}
+              getItemLayout={(data, index) => ({
+                length: 270,
+                offset: 270 * index,
+                index,
+              })}
+            />
+          ) : (
+            <View style={styles.emptyPill}>
+              <CalendarX2 size={22} color={colors.primaryDark} style={{ marginRight: 10 }} />
+              <View>
+                <Text style={styles.emptyTitle}>No hay eventos próximos en este venue</Text>
+                <Text style={styles.emptySub}>Vuelve más tarde para ver novedades</Text>
+              </View>
+            </View>
+          )}
+        </>
+      ) : hasEvents ? (
         <AnimatedFlatList
           ref={dragRef}
           horizontal
@@ -185,6 +236,27 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontFamily: 'Outfit_600SemiBold',
+  },
+
+  // ─── Venue header ───
+  venueHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    marginBottom: 10,
+  },
+  venueHeaderText: {
+    color: '#fff',
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    flex: 1,
+    marginRight: 8,
+  },
+  venueCloseBtn: {
+    backgroundColor: colors.glassLight,
+    borderRadius: 8,
+    padding: 5,
   },
 
   // ─── Empty state ───

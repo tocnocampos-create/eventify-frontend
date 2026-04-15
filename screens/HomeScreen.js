@@ -180,7 +180,13 @@ export default function HomeScreen() {
     mapState.focusVenueOnMap(v);
     setSearchQuery('');
     setShowFilters(false);
+    setShowSearchResults(false);
   }, [mapState.focusVenueOnMap]);
+
+  const handleCloseVenuePanel = useCallback(() => {
+    mapState.setShowVenuePanel(false);
+    mapState.setShowPanel(true);
+  }, [mapState.setShowVenuePanel, mapState.setShowPanel]);
 
   const handleGoToVenue = useCallback((v) => {
     mapState.clearPins();
@@ -527,6 +533,10 @@ export default function HomeScreen() {
         onScrollEndDrag={handleScrollEndDrag}
         onScroll={handleCarouselScroll}
         onMomentumScrollEnd={handleMomentumScrollEnd}
+        showVenuePanel={mapState.showVenuePanel}
+        venueEvents={mapState.venueEvents}
+        selectedVenueMeta={mapState.selectedVenueMeta}
+        onCloseVenuePanel={handleCloseVenuePanel}
       />
 
 
