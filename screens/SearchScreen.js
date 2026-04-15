@@ -75,6 +75,9 @@ export default function SearchScreen() {
   const badgeColors = getCategoryBadgeColors(config?.categories);
   const availableCities = config?.available_cities || ['Santiago'];
 
+  const discoverLat = location?.coords?.latitude;
+  const discoverLon = location?.coords?.longitude;
+
   const {
     data: discover,
     isLoading,
@@ -82,8 +85,8 @@ export default function SearchScreen() {
     refetch,
     isRefetching,
   } = useDiscover({
-    lat: location?.coords?.latitude,
-    lon: location?.coords?.longitude,
+    lat: discoverLat,
+    lon: discoverLon,
     city,
     radiusKm: radius,
   });
@@ -107,6 +110,24 @@ export default function SearchScreen() {
 
   // Request location on mount
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      if (!navigator.geolocation) {
+        return;
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          setLocation({
+            coords: { latitude: lat, longitude: lon },
+          });
+        },
+        () => {},
+        { timeout: 10000, maximumAge: 300000 }
+      );
+      return;
+    }
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
@@ -123,7 +144,6 @@ export default function SearchScreen() {
           setCity(detectedCity);
         }
       } catch (error) {
-        console.error('Error getting location:', error);
       }
     })();
   }, []);
