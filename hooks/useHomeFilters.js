@@ -81,10 +81,10 @@ export default function useHomeFilters(eventsData, searchQuery) {
       }
     });
     selectedTypes.forEach(typeKey => {
-      const [cat] = typeKey.split('::');
-      if (!selectedCategories.has(cat)) {
-        const [c, t] = typeKey.split('::');
-        filterPills.push(`${c} · ${t}`);
+      if (!typeKey.includes('::')) return;
+      const [cat, t] = typeKey.split('::');
+      if (!selectedCategories.has(cat) && t) {
+        filterPills.push(`${cat} · ${t}`);
       }
     });
     return filterPills;
@@ -163,7 +163,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
       return { clearPins: true };
     }
     return {};
-  }, [selectedDateTag, currentDate]);
+  }, [selectedDateTag, currentDate, filters, ALL_TYPES]);
 
   const removeFilter = useCallback((filter) => {
     if (filters.Date.includes(filter)) {

@@ -130,8 +130,6 @@ export function stripAccents(s) {
 
 export function normalizeCategory(input) {
   if (!input) return undefined;
-  const key = stripAccents(String(input).trim().toLowerCase());
-  return CATEGORY_MAP[key] || (
-    ["music","theater","humor","art","cinema"].includes(key) ? CATEGORY_MAP[key] : undefined
-  );
+  const stripped = stripAccents(String(input).trim().toLowerCase());
+  return CATEGORY_MAP[stripped] || input;
 }
