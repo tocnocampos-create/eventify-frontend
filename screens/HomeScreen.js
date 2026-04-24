@@ -5,6 +5,8 @@ import {
 import WebMap from '../components/WebMap';
 import { MapView as NativeMapView, Marker as NativeMarker, Circle as NativeCircle, Polygon as NativePolygon } from '../components/NativeMap';
 import BarrioDetailPanel from '../components/BarrioDetailPanel';
+import AlaireLibreSheet from '../components/AlaireLibreSheet';
+import alairelibre from '../data/alairelibre';
 import { normalizeLatLng } from '../utils/geo';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
@@ -58,9 +60,10 @@ export default function HomeScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [showBarrios, setShowBarrios] = useState(false);
+  const [overlayMode, setOverlayMode] = useState(0); // 0=none, 1=barrios, 2=al aire libre
   const [showSearchResults, setShowSearchResults] = useState(false);
   const [selectedBarrio, setSelectedBarrio] = useState(null);
+  const [selectedOutdoorVenue, setSelectedOutdoorVenue] = useState(null);
 
   // Location
   const [location, setLocation] = useState(null);
@@ -160,7 +163,7 @@ export default function HomeScreen() {
   }, []);
 
   const handleToggleFilters = useCallback(() => setShowFilters(prev => !prev), []);
-  const handleToggleBarrios = useCallback(() => setShowBarrios(prev => !prev), []);
+  const handleCycleOverlay = useCallback(() => setOverlayMode(prev => (prev + 1) % 3), []);
 
   const handleToggleFilter = useCallback((filter) => {
     const result = filterState.toggleFilter(filter);
@@ -287,6 +290,20 @@ export default function HomeScreen() {
       : allMarkers;
   }, [filterState.filteredEvents, venues, mapState.selectedEventPin, mapState.selectedVenue]);
 
+  const outdoorMarkers = useMemo(() =>
+    alairelibre.map((v) => ({
+      name: v.name,
+      type: v.type,
+      latitude: v.coordinates.latitude,
+      longitude: v.coordinates.longitude,
+    })),
+  []);
+
+  const handleOutdoorMarkerPress = useCallback((marker) => {
+    const full = alairelibre.find((v) => v.name === marker.name);
+    setSelectedOutdoorVenue(full || marker);
+  }, []);
+
   const initialRegion = Platform.OS === 'web'
     ? {
         latitude: location?.coords?.latitude ?? DEFAULT_MAP_REGION.latitude,
@@ -335,8 +352,10 @@ export default function HomeScreen() {
             pinColor: getVenuePinColor(mapState.selectedVenueMeta?.type),
           } : null}
           pinColors={{ default: PIN_PURPLE, selected: '#FFFFFF', venue: PIN_NAVY, venueSelected: PIN_NAVY_SELECTED }}
-          barrios={showBarrios ? barrios : []}
+          barrios={overlayMode === 1 ? barrios : []}
           onBarrioPress={handleBarrioPress}
+          outdoorMarkers={overlayMode === 2 ? outdoorMarkers : []}
+          onOutdoorMarkerPress={handleOutdoorMarkerPress}
           onRegionChange={(region) => {
             if (!region) return;
             mapState.mapRegionRef.current = { ...mapState.mapRegionRef.current, ...region };
@@ -357,7 +376,7 @@ export default function HomeScreen() {
             mapState.mapRegionRef.current = { ...mapState.mapRegionRef.current, ...region };
           }}
         >
-          {showBarrios && barrios.map((barrio) => (
+          {overlayMode === 1 && barrios.map((barrio) => (
             <NativePolygon
               key={barrio.id}
               coordinates={barrio.coordinates}
@@ -366,6 +385,24 @@ export default function HomeScreen() {
               strokeWidth={2} zIndex={1}
               onPress={() => handleBarrioPress(barrio)} tappable={true}
             />
+          ))}
+
+          {overlayMode === 2 && outdoorMarkers.map((om) => (
+            <NativeMarker
+              key={om.name}
+              coordinate={{ latitude: om.latitude, longitude: om.longitude }}
+              anchor={{ x: 0.5, y: 1 }}
+              tracksViewChanges={false}
+              onPress={(e) => { e.stopPropagation(); handleOutdoorMarkerPress(om); }}
+              zIndex={10}
+            >
+              <View style={styles.outdoorPinContainer}>
+                <View style={styles.outdoorPinBody}>
+                  <View style={styles.outdoorPinDot} />
+                </View>
+                <View style={styles.outdoorPinPointer} />
+              </View>
+            </NativeMarker>
           ))}
 
           {location && (
@@ -442,8 +479,8 @@ export default function HomeScreen() {
         onClear={() => { setSearchQuery(''); setShowSearchResults(false); mapState.setSelectedEventPin(null); }}
         showFilters={showFilters}
         onToggleFilters={handleToggleFilters}
-        showBarrios={showBarrios}
-        onToggleBarrios={handleToggleBarrios}
+        overlayMode={overlayMode}
+        onCycleOverlay={handleCycleOverlay}
         style={{ position: 'absolute', top: insets.top + 8, left: 15, right: 15, zIndex: 12 }}
       />
 
@@ -555,6 +592,13 @@ export default function HomeScreen() {
         visible={!!selectedBarrio}
         onClose={() => setSelectedBarrio(null)}
         venues={venues}
+      />
+
+      {/* ===== AL AIRE LIBRE SHEET ===== */}
+      <AlaireLibreSheet
+        venue={selectedOutdoorVenue}
+        visible={!!selectedOutdoorVenue}
+        onClose={() => setSelectedOutdoorVenue(null)}
       />
     </View>
   );
@@ -683,5 +727,42 @@ const styles = StyleSheet.create({
     borderRadius: 7,
     backgroundColor: 'rgba(0,0,0,0.15)',
     marginTop: 1,
+  },
+  // Outdoor (al aire libre) pin styles (native)
+  outdoorPinContainer: {
+    alignItems: 'center',
+    width: 34,
+    height: 42,
+  },
+  outdoorPinBody: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#2D7D46',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: 'rgba(255,255,255,0.8)',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.3, shadowRadius: 4 },
+      android: { elevation: 6 },
+    }),
+  },
+  outdoorPinDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+  },
+  outdoorPinPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 5,
+    borderRightWidth: 5,
+    borderTopWidth: 7,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    borderTopColor: '#2D7D46',
+    marginTop: -2,
   },
 });

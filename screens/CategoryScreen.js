@@ -138,7 +138,7 @@ const VENUE_TYPE_SPEC = {
   'Vida Nocturna': ['Club', 'Bar', 'Discoteca', 'Pub', 'Boliche'],
   'Nacional':      ['Bar', 'Sala de Concierto', 'Club'],
   'Barrios':       ['Bar', 'Centro Cultural', 'Teatro'],
-  'Al aire libre': ['Arena'],
+  'Al aire libre': ['Parque', 'Cerro', 'Bosque', 'Santuario', 'Monumento Natural', 'Parque Nacional', 'Salto'],
   'Festivales':    ['Arena'],
   'City Tour':     ['Museo', 'Centro Cultural'],
   'Museos':        ['Museo'],

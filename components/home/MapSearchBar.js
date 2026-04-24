@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Search, SlidersHorizontal, MapPin, Footprints, X } from 'lucide-react-native';
+import { Search, SlidersHorizontal, MapPin, Footprints, TreePine, X } from 'lucide-react-native';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
 
@@ -11,8 +11,8 @@ export default function MapSearchBar({
   onClear,
   showFilters,
   onToggleFilters,
-  showBarrios,
-  onToggleBarrios,
+  overlayMode = 0,
+  onCycleOverlay,
   style,
 }) {
   return (
@@ -32,11 +32,17 @@ export default function MapSearchBar({
           </TouchableOpacity>
         )}
         <TouchableOpacity
-          style={[styles.iconBtn, showBarrios && styles.iconBtnActive]}
-          onPress={onToggleBarrios}
+          style={[
+            styles.iconBtn,
+            overlayMode === 1 && styles.iconBtnActive,
+            overlayMode === 2 && styles.iconBtnActiveGreen,
+          ]}
+          onPress={onCycleOverlay}
           activeOpacity={0.7}
         >
-          {showBarrios ? (
+          {overlayMode === 2 ? (
+            <TreePine size={20} color="#fff" />
+          ) : overlayMode === 1 ? (
             <Footprints size={20} color="#fff" />
           ) : (
             <MapPin size={20} color="#fff" />
@@ -96,6 +102,9 @@ const styles = StyleSheet.create({
   },
   iconBtnActive: {
     backgroundColor: colors.authGradientStart,
+  },
+  iconBtnActiveGreen: {
+    backgroundColor: '#2D7D46',
   },
   filterGradient: {
     marginLeft: 10,

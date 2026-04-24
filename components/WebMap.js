@@ -14,6 +14,8 @@ import { View, Platform } from 'react-native';
 // - pinColors: { default: string, selected: string, venue: string }
 // - barrios: Array<{ id: string, name: string, coordinates: Array<{latitude, longitude}>, fillColor: string, strokeColor: string }>
 // - onBarrioPress: (barrio) => void - Callback when user taps a barrio polygon
+// - outdoorMarkers: Array<{ name: string, type: string, latitude: number, longitude: number }>
+// - onOutdoorMarkerPress: (marker) => void
 
 function loadGoogleMaps(apiKey) {
   return new Promise((resolve, reject) => {
@@ -29,6 +31,7 @@ function loadGoogleMaps(apiKey) {
     script.id = 'gmaps-sdk';
     script.async = true;
     script.defer = true;
+    console.log('[WebMap] injecting Google Maps with apiKey:', apiKey);
     script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
     script.onload = () => resolve(window.google.maps);
     script.onerror = reject;
@@ -52,6 +55,8 @@ const WebMap = forwardRef(function WebMap(
     onRegionChange,
     barrios = [],
     onBarrioPress,
+    outdoorMarkers = [],
+    onOutdoorMarkerPress,
   },
   ref
 ) {
@@ -63,6 +68,7 @@ const WebMap = forwardRef(function WebMap(
   const tempEventMarkerRef = useRef(null);
   const venueMarkerRef = useRef(null);
   const polygonsRef = useRef([]);
+  const outdoorMarkersRef = useRef([]);
   const centerRef = useRef(null);
   const resizeObserverRef = useRef(null);
   const listenersRef = useRef([]);
@@ -149,7 +155,7 @@ const WebMap = forwardRef(function WebMap(
 
   useEffect(() => {
     renderAll();
-  }, [userLocation, circleRadius, venueMarkers, selectedEventPin, selectedVenuePin, barrios]);
+  }, [userLocation, circleRadius, venueMarkers, selectedEventPin, selectedVenuePin, barrios, outdoorMarkers]);
 
   useImperativeHandle(ref, () => ({
     animateToRegion: (region, duration) => {
@@ -283,6 +289,32 @@ const WebMap = forwardRef(function WebMap(
         if (__DEV__) console.error('[WebMap] Failed to create marker:', error, vm);
       }
     });
+
+    // outdoor markers (al aire libre mode)
+    outdoorMarkersRef.current.forEach((m) => m.setMap(null));
+    outdoorMarkersRef.current = [];
+    if (outdoorMarkers && outdoorMarkers.length > 0) {
+      outdoorMarkers.forEach((om) => {
+        const lat = typeof om.latitude === 'number' ? om.latitude : parseFloat(om.latitude);
+        const lng = typeof om.longitude === 'number' ? om.longitude : parseFloat(om.longitude);
+        if (isNaN(lat) || isNaN(lng)) return;
+        try {
+          const marker = new maps.Marker({
+            map: mapRef.current,
+            position: { lat, lng },
+            zIndex: 10,
+            title: om.name || '',
+            icon: outdoorPinIcon(maps),
+          });
+          if (onOutdoorMarkerPress) {
+            marker.addListener('click', () => onOutdoorMarkerPress(om));
+          }
+          outdoorMarkersRef.current.push(marker);
+        } catch (error) {
+          if (__DEV__) console.error('[WebMap] Failed to create outdoor marker:', error, om);
+        }
+      });
+    }
 
     // selected event (temp) marker
     if (selectedEventPin) {
@@ -434,6 +466,19 @@ const ARTE_PIN_SVG = `
 </svg>
 `;
 
+const OUTDOOR_PIN_SVG = `
+<svg width="${PIN_WIDTH_WEB}" height="${PIN_HEIGHT_WEB}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="gradientOutdoor" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#22C55E" />
+      <stop offset="100%" stop-color="#15803D" />
+    </linearGradient>
+  </defs>
+  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 5.4 10.74 6.6 11.97.21.21.49.33.79.33s.58-.12.79-.33C13.6 19.74 19 14.25 19 9c0-3.87-3.13-7-7-7Z" fill="url(#gradientOutdoor)" stroke="#14532D" stroke-width="1.5" />
+  <circle cx="12" cy="9" r="4" fill="#FFFFFF" />
+</svg>
+`;
+
 const CINE_PIN_SVG = `
 <svg width="${PIN_WIDTH_WEB}" height="${PIN_HEIGHT_WEB}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
   <defs>
@@ -447,6 +492,7 @@ const CINE_PIN_SVG = `
 </svg>
 `;
 
+const OUTDOOR_PIN_ICON_URL = svgToDataUrl(OUTDOOR_PIN_SVG);
 const DEFAULT_PIN_ICON_URL = svgToDataUrl(DEFAULT_PIN_SVG);
 const SELECTED_PIN_ICON_URL = svgToDataUrl(SELECTED_PIN_SVG);
 const VENUE_DEFAULT_PIN_ICON_URL = svgToDataUrl(VENUE_DEFAULT_PIN_SVG);
@@ -588,6 +634,16 @@ function venuePinIcon(maps, color, count) {
     url,
     anchor: new maps.Point(W / 2, H),
     scaledSize: new maps.Size(W, H),
+  };
+}
+
+function outdoorPinIcon(maps) {
+  if (!maps) return null;
+  return {
+    url: OUTDOOR_PIN_ICON_URL,
+    anchor: new maps.Point(PIN_ANCHOR_X, PIN_HEIGHT_WEB),
+    scaledSize: new maps.Size(PIN_WIDTH_WEB, PIN_HEIGHT_WEB),
+    labelOrigin: new maps.Point(PIN_ANCHOR_X, PIN_LABEL_Y),
   };
 }
 
