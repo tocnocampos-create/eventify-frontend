@@ -9,6 +9,7 @@ export const PIN_TEATRO = '#3B82F6';
 export const PIN_COMEDIA = '#FF69B4';
 export const PIN_ARTE = '#00BCD4';
 export const PIN_CINE = '#3B52D8';
+export const PIN_GREEN = '#22C55E';
 
 // Emojis por tipo de venue
 export const VENUE_TYPE_EMOJI = {

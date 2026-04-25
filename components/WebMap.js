@@ -466,18 +466,6 @@ const ARTE_PIN_SVG = `
 </svg>
 `;
 
-const OUTDOOR_PIN_SVG = `
-<svg width="${PIN_WIDTH_WEB}" height="${PIN_HEIGHT_WEB}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="gradientOutdoor" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#22C55E" />
-      <stop offset="100%" stop-color="#15803D" />
-    </linearGradient>
-  </defs>
-  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 5.4 10.74 6.6 11.97.21.21.49.33.79.33s.58-.12.79-.33C13.6 19.74 19 14.25 19 9c0-3.87-3.13-7-7-7Z" fill="url(#gradientOutdoor)" stroke="#14532D" stroke-width="1.5" />
-  <circle cx="12" cy="9" r="4" fill="#FFFFFF" />
-</svg>
-`;
 
 const CINE_PIN_SVG = `
 <svg width="${PIN_WIDTH_WEB}" height="${PIN_HEIGHT_WEB}" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -492,7 +480,6 @@ const CINE_PIN_SVG = `
 </svg>
 `;
 
-const OUTDOOR_PIN_ICON_URL = svgToDataUrl(OUTDOOR_PIN_SVG);
 const DEFAULT_PIN_ICON_URL = svgToDataUrl(DEFAULT_PIN_SVG);
 const SELECTED_PIN_ICON_URL = svgToDataUrl(SELECTED_PIN_SVG);
 const VENUE_DEFAULT_PIN_ICON_URL = svgToDataUrl(VENUE_DEFAULT_PIN_SVG);
@@ -638,13 +625,7 @@ function venuePinIcon(maps, color, count) {
 }
 
 function outdoorPinIcon(maps) {
-  if (!maps) return null;
-  return {
-    url: OUTDOOR_PIN_ICON_URL,
-    anchor: new maps.Point(PIN_ANCHOR_X, PIN_HEIGHT_WEB),
-    scaledSize: new maps.Size(PIN_WIDTH_WEB, PIN_HEIGHT_WEB),
-    labelOrigin: new maps.Point(PIN_ANCHOR_X, PIN_LABEL_Y),
-  };
+  return venuePinIcon(maps, '#22C55E');
 }
 
 function zoomToLatDelta(zoom) {
