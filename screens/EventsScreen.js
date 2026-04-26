@@ -13,6 +13,7 @@ import {
   ScrollView,
   Platform,
 } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
@@ -465,15 +466,15 @@ export default function EventsScreen({ route }) {
     );
   };
 
-  const renderEvent = ({ item }) => {
+  const renderEvent = ({ item, index }) => {
     const category = normalizeCategory(item?.category);
     const catColor = categoryColors[category] || colors.primary;
     const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
 
     return (
-      <TouchableOpacity
-        style={styles.eventCard}
-        activeOpacity={0.9}
+      <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify().damping(15).stiffness(150)}>
+      <Pressable
+        style={({ pressed }) => [styles.eventCard, pressed && { transform: [{ scale: 0.97 }] }]}
         onPress={() => navigation.navigate('EventDetail', { event: item })}
       >
         {item?.image ? (
@@ -515,7 +516,8 @@ export default function EventsScreen({ route }) {
           end={{ x: 1, y: 0 }}
           style={styles.bottomAccent}
         />
-      </TouchableOpacity>
+      </Pressable>
+      </Animated.View>
     );
   };
 

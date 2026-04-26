@@ -47,10 +47,12 @@ export default function BarrioDetailPanel({ barrio, visible, onClose, venues = [
 
   React.useEffect(() => {
     if (visible) {
-      Animated.timing(fadeAnim, {
+      Animated.spring(fadeAnim, {
         toValue: 1,
-        duration: 300,
         useNativeDriver: true,
+        stiffness: 150,
+        damping: 15,
+        mass: 0.8,
       }).start();
     } else {
       fadeAnim.setValue(0);
@@ -114,7 +116,7 @@ export default function BarrioDetailPanel({ barrio, visible, onClose, venues = [
     <Modal
       visible={visible}
       transparent={true}
-      animationType="fade"
+      animationType="none"
       onRequestClose={onClose}
     >
       {/* Dimmed background overlay */}

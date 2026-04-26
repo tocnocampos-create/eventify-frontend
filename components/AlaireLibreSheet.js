@@ -24,10 +24,12 @@ export default function AlaireLibreSheet({ venue, visible, onClose }) {
         friction: 12,
       }).start();
     } else {
-      Animated.timing(translateY, {
+      Animated.spring(translateY, {
         toValue: 200,
-        duration: 200,
         useNativeDriver: true,
+        stiffness: 250,
+        damping: 28,
+        mass: 0.8,
       }).start();
     }
   }, [visible]);

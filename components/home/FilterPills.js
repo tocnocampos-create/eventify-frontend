@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
 import useDragScroll from '../../hooks/useDragScroll';
 import { X } from 'lucide-react-native';
 import GlassOverlay from './GlassOverlay';
@@ -23,17 +24,21 @@ export default function FilterPills({ filters, onRemove, style }) {
           ? getCategoryBorderColor(filterItem.value)
           : null;
         return (
-          <GlassOverlay
+          <Animated.View
             key={`${filterItem.type}-${filterItem.value}-${index}`}
-            style={[styles.pill, index > 0 && { marginLeft: 8 }]}
-            borderRadius={22}
+            entering={FadeInDown.delay(index * 50).springify().damping(15).stiffness(200)}
           >
-            {borderColor && <View style={[styles.accentBar, { backgroundColor: borderColor }]} />}
-            <Text style={styles.text}>{filterItem.label}</Text>
-            <TouchableOpacity onPress={() => onRemove(filterItem)} style={styles.removeBtn}>
-              <X size={12} color={colors.primary} />
-            </TouchableOpacity>
-          </GlassOverlay>
+            <GlassOverlay
+              style={[styles.pill, index > 0 && { marginLeft: 8 }]}
+              borderRadius={22}
+            >
+              {borderColor && <View style={[styles.accentBar, { backgroundColor: borderColor }]} />}
+              <Text style={styles.text}>{filterItem.label}</Text>
+              <TouchableOpacity onPress={() => onRemove(filterItem)} style={styles.removeBtn}>
+                <X size={12} color={colors.primary} />
+              </TouchableOpacity>
+            </GlassOverlay>
+          </Animated.View>
         );
       })}
     </ScrollView>

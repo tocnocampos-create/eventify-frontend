@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChevronUp, ChevronDown } from 'lucide-react-native';
 import Slider from '../CrossPlatformSlider';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutUp } from 'react-native-reanimated';
 import GlassOverlay from './GlassOverlay';
 import colors from '../../theme/colors';
 import { categoryColors } from '../../utils/pinColors';
@@ -26,7 +26,11 @@ export default function FilterPanel({
   style,
 }) {
   return (
-    <Animated.View entering={FadeIn.duration(200)} exiting={FadeOut.duration(150)} style={style}>
+    <Animated.View
+      entering={FadeInDown.springify().damping(15).stiffness(150).mass(0.8)}
+      exiting={FadeOutUp.springify().damping(20).stiffness(200)}
+      style={style}
+    >
       <GlassOverlay style={styles.container} borderRadius={16}>
         {/* Date */}
         <View>
