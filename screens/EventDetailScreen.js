@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   Modal,
+  ScrollView,
   useWindowDimensions,
   Animated,
 } from 'react-native';
@@ -24,11 +25,15 @@ dayjs.locale('es');
 import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
 import { formatPrice } from '../utils/mapHelpers';
+import { getCinemaSchedule, formatScheduleDate } from '../utils/cinemaGrouping';
 import ReviewModal from '../components/ReviewModal';
 import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
 import { GOOGLE_MAPS_API_KEY } from '../config/env';
 
 // Colores de pines
+const CINE_BLUE = '#3B52D8';
+const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
+const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
 const PIN_PURPLE = '#9F7BFF';
 const PIN_TEATRO = '#3B82F6'; // vibrant bright blue para eventos de Teatro
 const PIN_COMEDIA = '#FF69B4'; // vibrant pink para eventos de Comedia
@@ -205,20 +210,32 @@ export default function EventDetailScreen() {
   const route = useRoute();
   const insets = useSafeAreaInsets();
   const { event: routeEvent } = route.params;
-  const { data: detailData, isLoading: isDetailLoading } = useEventDetail(routeEvent?.id);
+  const isCinemaGroup = !!routeEvent?._isCinemaGroup;
+  // For cinema groups fetch the first showtime's detail to get community links (trailer).
+  // For regular events fetch the event's own detail as before.
+  const detailFetchId = isCinemaGroup
+    ? (routeEvent?.showtimes?.[0]?.id ?? null)
+    : (routeEvent?.id ?? null);
+  const { data: detailData, isLoading: isDetailLoading } = useEventDetail(detailFetchId);
 
-  // Merge: show route params immediately, overlay API data when ready
-  const event = detailData ? { ...routeEvent, ...detailData.event } : routeEvent;
+  // For cinema groups: never merge detailData.event — it would overwrite the
+  // base title with a format-suffixed showtime title (e.g. "MOVIE (3D SUBT)").
+  const event = isCinemaGroup
+    ? routeEvent
+    : (detailData ? { ...routeEvent, ...detailData.event } : routeEvent);
   const detailVenue = detailData?.venue || null;
   const reviews = detailData?.reviews || [];
   const averageRating = detailData?.averageRating ?? null;
   const reviewCount = detailData?.reviewCount ?? 0;
+  const communityLinks = detailData?.communityLinks || [];
 
+  const isSoldOut = !!(event?.isSoldOut);
   const { data: isSaved = false } = useIsEventSaved(routeEvent?.id);
   const toggleSave = useToggleSaveEvent(routeEvent?.id);
 
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [cinemaSelectedDate, setCinemaSelectedDate] = useState(null);
   const mapRef = useRef(null);
   const webMapRef = useRef(null);
   const [currentRegion, setCurrentRegion] = useState(null);
@@ -277,6 +294,14 @@ export default function EventDetailScreen() {
 
   const displayDateTime = formatEventDate(event?.date, event?.timeStart || event?.hour);
 
+  // Cinema group schedule
+  const cinemaSchedule = useMemo(
+    () => (isCinemaGroup ? getCinemaSchedule(event?.showtimes || [], 14) : []),
+    [isCinemaGroup, event?.showtimes]
+  );
+  const effectiveCinemaDate = cinemaSelectedDate || cinemaSchedule[0]?.date || null;
+  const selectedCinemaDayData = cinemaSchedule.find(s => s.date === effectiveCinemaDate);
+
   // Only allow writing reviews for past events
   const isEventPast = useMemo(() => {
     if (!event?.date) return false;
@@ -311,20 +336,35 @@ export default function EventDetailScreen() {
       };
 
   const products = detailData?.products || [];
-  const communityLinks = detailData?.communityLinks || [];
+
+  // communityLinks already declared above (from detailData)
+  const trailerLink = isCinemaGroup
+    ? communityLinks.find(l => l.platform === 'youtube') || null
+    : null;
+  // For cinema groups, the youtube link is shown as a dedicated trailer button —
+  // filter it out of the general community section to avoid duplication.
+  const visibleCommunityLinks = isCinemaGroup
+    ? communityLinks.filter(l => l.platform !== 'youtube')
+    : communityLinks;
+
+  // Hero image: for cinema groups, fall back to the freshly-fetched detailData image
+  // because routeEvent.image may be stale/null if built before the TMDB enricher ran.
+  const heroImage = isCinemaGroup
+    ? (routeEvent?.image || detailData?.event?.image || null)
+    : event?.image || null;
 
   // Check if event is Teatro, Cine, or Arte (for review section)
   const isReviewCategory = event?.category === 'Teatro' || event?.category === 'Cine' || event?.category === 'Arte';
-  
+
   // Categories that should not show "Productos del Artista"
   const shouldHideProducts = isReviewCategory || event?.category === 'Comedia';
-  
+
   // Only show review if the event actually has review data from backend
   const reviewData = event?.review || null;
 
   const hasProducts = products.length > 0 && !shouldHideProducts;
   const hasReview = isReviewCategory && reviewData?.text;
-  const hasCommunity = communityLinks.length > 0;
+  const hasCommunity = visibleCommunityLinks.length > 0;
 
   const openInGoogleMaps = () => {
     if (!normalizedCoord) return;
@@ -385,7 +425,7 @@ export default function EventDetailScreen() {
 
   return (
     <TabScreenLayout style={styles.container}>
-      {/* Animated parallax header image */}
+      {/* Animated parallax header image — visual only, touch handled by heroTapOverlay below */}
       <Animated.View
         style={[
           styles.imageContainer,
@@ -395,19 +435,12 @@ export default function EventDetailScreen() {
           },
         ]}
       >
-        {event?.image ? (
-          <TouchableOpacity onPress={() => setLightboxVisible(true)} activeOpacity={0.9}>
-            <Image source={{ uri: event.image }} style={styles.image} />
-          </TouchableOpacity>
+        {heroImage ? (
+          <Image source={{ uri: heroImage }} style={styles.image} />
         ) : (
           <View style={[styles.image, { backgroundColor: '#444' }]} />
         )}
       </Animated.View>
-
-      {/* Botón de volver */}
-      <TouchableOpacity onPress={handleBackPress} style={[styles.backButton, { top: insets.top + 10 }]}>
-        <Ionicons name="arrow-back" size={24} color="#fff" />
-      </TouchableOpacity>
 
       {/* Lightbox Modal */}
       <Modal
@@ -415,27 +448,30 @@ export default function EventDetailScreen() {
         transparent={true}
         animationType="fade"
         onRequestClose={() => setLightboxVisible(false)}
+        statusBarTranslucent
       >
         <View style={styles.lightboxContainer}>
-          <TouchableOpacity
-            style={styles.lightboxCloseButton}
-            onPress={() => setLightboxVisible(false)}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="close" size={28} color="#fff" />
-          </TouchableOpacity>
+          {/* Tap anywhere on image or dark background to close */}
           <TouchableOpacity
             style={[styles.lightboxImageContainer, { width: screenWidth, height: screenHeight }]}
             onPress={() => setLightboxVisible(false)}
             activeOpacity={1}
           >
-            {event?.image && (
+            {heroImage && (
               <Image
-                source={{ uri: event.image }}
+                source={{ uri: heroImage }}
                 style={{ width: screenWidth, height: screenHeight }}
                 resizeMode="contain"
               />
             )}
+          </TouchableOpacity>
+          {/* X button rendered after image container so it sits on top (Android draw order) */}
+          <TouchableOpacity
+            style={[styles.lightboxCloseButton, { top: insets.top + 10 }]}
+            onPress={() => setLightboxVisible(false)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="close" size={28} color="#fff" />
           </TouchableOpacity>
         </View>
       </Modal>
@@ -455,10 +491,54 @@ export default function EventDetailScreen() {
 
         {!!event?.description && <Text style={styles.description}>{event.description}</Text>}
 
-        <Text style={styles.dateText}>
-          {displayDateTime}
-          {event?.price != null ? ` · ${event.price === 0 ? 'Gratis' : `Desde ${formatPrice(event.price)}`}` : ''}
-        </Text>
+        {isCinemaGroup ? (
+          <View style={styles.cinemaScheduleSection}>
+            <Text style={styles.sectionTitle}>Horarios</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.cinemaDateTabs}
+            >
+              {cinemaSchedule.map(({ date }) => {
+                const active = effectiveCinemaDate === date;
+                return (
+                  <TouchableOpacity
+                    key={date}
+                    style={[styles.cinemaDateTab, active && styles.cinemaDateTabActive]}
+                    onPress={() => setCinemaSelectedDate(date)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.cinemaDateTabText, active && styles.cinemaDateTabTextActive]}>
+                      {formatScheduleDate(date)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+            {selectedCinemaDayData?.formats.map(({ format, times }) => (
+              <View key={format} style={styles.cinemaFormatBlock}>
+                <Text style={styles.cinemaFormatLabel}>{format}</Text>
+                <View style={styles.cinemaTimePillRow}>
+                  {times.map(time => (
+                    <TouchableOpacity
+                      key={time}
+                      style={styles.cinemaTimePill}
+                      onPress={handleGetTickets}
+                      activeOpacity={0.7}
+                    >
+                      <Text style={styles.cinemaTimePillText}>{time}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        ) : (
+          <Text style={styles.dateText}>
+            {displayDateTime}
+            {event?.price != null ? ` · ${event.price === 0 ? 'Gratis' : `Desde ${formatPrice(event.price)}`}` : ''}
+          </Text>
+        )}
 
         {/* Ubicación (chip clickable) */}
         {!!(event?.venueName || event?.location) && (
@@ -469,9 +549,36 @@ export default function EventDetailScreen() {
         )}
 
         {/* Botón tickets */}
-        <TouchableOpacity style={styles.ticketButton} onPress={handleGetTickets} activeOpacity={0.9}>
-          <Text style={styles.ticketButtonText}>Obtener Tickets</Text>
+        <TouchableOpacity
+          style={[
+            styles.ticketButton,
+            isCinemaGroup && styles.cinemaTicketButton,
+            isSoldOut && styles.ticketButtonSoldOut,
+          ]}
+          onPress={isSoldOut ? undefined : handleGetTickets}
+          activeOpacity={isSoldOut ? 1 : 0.9}
+          disabled={isSoldOut}
+        >
+          <Text style={[styles.ticketButtonText, isSoldOut && styles.ticketButtonTextSoldOut]}>
+            {isSoldOut ? 'Agotado' : isCinemaGroup ? 'Comprar tickets' : 'Obtener Tickets'}
+          </Text>
         </TouchableOpacity>
+
+        {/* Botón trailer (cinema groups only) */}
+        {isCinemaGroup && !!trailerLink && (
+          <TouchableOpacity
+            style={styles.trailerButton}
+            onPress={() =>
+              Linking.openURL(trailerLink.url).catch(() =>
+                Alert.alert('Error', 'No se pudo abrir el trailer.')
+              )
+            }
+            activeOpacity={0.9}
+          >
+            <Ionicons name="logo-youtube" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.trailerButtonText}>Ver trailer</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Guardar plan */}
         <TouchableOpacity
@@ -627,7 +734,7 @@ export default function EventDetailScreen() {
           <View style={{ marginTop: 16, marginBottom: 12 }}>
             <Text style={styles.sectionTitle}>Comunidad</Text>
             <View style={styles.linksRow}>
-              {communityLinks.map((link) => {
+              {visibleCommunityLinks.map((link) => {
                 const cfg = getPlatformConfig(link.platform);
                 return (
                   <LinkPill
@@ -651,6 +758,22 @@ export default function EventDetailScreen() {
         eventId={event?.id}
         eventName={event?.title}
       />
+
+      {/* Hero image tap overlay — rendered after ScrollView so it wins the touch competition.
+          The ScrollView (flex:1) covers the full screen and would intercept taps aimed at the
+          hero Animated.View (zIndex:0) if the overlay were rendered before it. */}
+      {!!heroImage && (
+        <TouchableOpacity
+          style={styles.heroTapOverlay}
+          onPress={() => setLightboxVisible(true)}
+          activeOpacity={0.85}
+        />
+      )}
+
+      {/* Back button — rendered last so it always sits on top of the tap overlay */}
+      <TouchableOpacity onPress={handleBackPress} style={[styles.backButton, { top: insets.top + 10 }]}>
+        <Ionicons name="arrow-back" size={24} color="#fff" />
+      </TouchableOpacity>
     </TabScreenLayout>
   );
 }
@@ -680,6 +803,13 @@ const styles = StyleSheet.create({
     paddingTop: 24,
     paddingHorizontal: 20,
     paddingBottom: 40,
+  },
+  heroTapOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: IMAGE_HEIGHT,
   },
   backButton: {
     position: 'absolute',
@@ -711,7 +841,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 14,
   },
+  ticketButtonSoldOut: {
+    backgroundColor: 'rgba(229, 62, 62, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(229, 62, 62, 0.5)',
+  },
   ticketButtonText: { color: INK, fontSize: 16, fontWeight: '700' },
+  ticketButtonTextSoldOut: { color: '#E53E3E' },
   savePlanButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -844,6 +980,56 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
 
+  // Cinema schedule styles
+  cinemaScheduleSection: { marginBottom: 16 },
+  cinemaDateTabs: { gap: 8, paddingBottom: 14, paddingRight: 16 },
+  cinemaDateTab: {
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    borderRadius: 20,
+    backgroundColor: CINE_LIGHT,
+    borderWidth: 1,
+    borderColor: CINE_BORDER,
+  },
+  cinemaDateTabActive: { backgroundColor: CINE_BLUE, borderColor: CINE_BLUE },
+  cinemaDateTabText: {
+    color: '#A0B4FF',
+    fontSize: 13,
+    fontFamily: 'Outfit_500Medium',
+    textTransform: 'capitalize',
+  },
+  cinemaDateTabTextActive: { color: '#fff', fontFamily: 'Outfit_600SemiBold' },
+  cinemaFormatBlock: { marginBottom: 14 },
+  cinemaFormatLabel: {
+    color: '#A0B4FF',
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  cinemaTimePillRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  cinemaTimePill: {
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+    borderRadius: 10,
+    backgroundColor: CINE_LIGHT,
+    borderWidth: 1,
+    borderColor: CINE_BORDER,
+  },
+  cinemaTimePillText: { color: '#A0B4FF', fontSize: 14, fontFamily: 'Outfit_600SemiBold' },
+  cinemaTicketButton: { backgroundColor: CINE_BLUE },
+  trailerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FF0000',
+    paddingVertical: 14,
+    borderRadius: 12,
+    marginBottom: 14,
+  },
+  trailerButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
   // Lightbox styles
   lightboxContainer: {
     flex: 1,
@@ -853,12 +1039,11 @@ const styles = StyleSheet.create({
   },
   lightboxCloseButton: {
     position: 'absolute',
-    top: 50,
     right: 20,
     zIndex: 10,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    borderRadius: 20,
-    padding: 8,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 24,
+    padding: 10,
   },
   lightboxImageContainer: {
     justifyContent: 'center',

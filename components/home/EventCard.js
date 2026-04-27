@@ -4,13 +4,17 @@ import Animated, {
   useSharedValue, useAnimatedStyle, withSpring,
 } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Calendar, MapPin } from 'lucide-react-native';
+import { Calendar, MapPin, Clock } from 'lucide-react-native';
 import colors from '../../theme/colors';
 import { formatEventDateTime, formatPrice } from '../../utils/mapHelpers';
 import { normalizeCategory } from '../../utils/filters.schema';
 import { categoryColors } from '../../utils/pinColors';
+import { getCinemaSchedule } from '../../utils/cinemaGrouping';
 
 const SPRING = { damping: 16, stiffness: 160, mass: 0.8 };
+const CINE_BLUE = colors.pinCine;
+const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
+const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
 
 const badgeColors = {
   'Música': colors.badgeMusica,
@@ -20,10 +24,12 @@ const badgeColors = {
   'Cine': colors.badgeCine,
 };
 
-export default function EventCard({ item, index, isSelected, onPress }) {
+export default function EventCard({ item, index, isSelected, onPress, onVerHorarios }) {
   const category = normalizeCategory(item?.category);
   const catColor = categoryColors[category] || colors.primary;
+  const isSoldOut = !!item?.isSoldOut;
   const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
+  const isCinemaGroup = !!item?._isCinemaGroup;
 
   // ─── Selection animation ───
   const scale = useSharedValue(isSelected ? 1.04 : 1);
@@ -35,6 +41,12 @@ export default function EventCard({ item, index, isSelected, onPress }) {
   const animatedCardStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],
   }));
+
+  // For cinema groups, show today's first format + time
+  const todaySchedule = isCinemaGroup
+    ? getCinemaSchedule(item.showtimes || [], 1)[0]
+    : null;
+  const totalShowtimes = isCinemaGroup ? (item.showtimes || []).length : 0;
 
   return (
     <TouchableOpacity
@@ -67,25 +79,79 @@ export default function EventCard({ item, index, isSelected, onPress }) {
           <View style={[styles.badge, { backgroundColor: badgeBg }]}>
             <Text style={styles.badgeText}>{category}</Text>
           </View>
-        </View>
-        <View style={styles.content}>
-          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
-          <View style={styles.metaRow}>
-            <Calendar size={12} color={colors.textDim} />
-            <Text style={styles.metaText}>{formatEventDateTime(item)}</Text>
-          </View>
-          {!!item.location && (
-            <View style={styles.metaRow}>
-              <MapPin size={12} color={colors.textDim} />
-              <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
+          {isSoldOut && (
+            <View style={styles.soldOutBadge}>
+              <Text style={styles.soldOutText}>Agotado</Text>
             </View>
           )}
-          {item.price != null && (
-            <Text style={styles.price}>
-              {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
-            </Text>
+        </View>
+
+        <View style={styles.content}>
+          <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
+
+          {isCinemaGroup ? (
+            <>
+              {/* Cinema meta: showtime count */}
+              <View style={styles.metaRow}>
+                <Clock size={12} color={colors.textDim} />
+                <Text style={styles.metaText}>
+                  {totalShowtimes} {totalShowtimes === 1 ? 'función' : 'funciones'}
+                </Text>
+              </View>
+              {!!(item.venueName || item.location) && (
+                <View style={styles.metaRow}>
+                  <MapPin size={12} color={colors.textDim} />
+                  <Text style={styles.metaText} numberOfLines={1}>
+                    {item.venueName || item.location}
+                  </Text>
+                </View>
+              )}
+              {/* Today's first times preview */}
+              {todaySchedule && (
+                <View style={styles.timesPreview}>
+                  {todaySchedule.formats.slice(0, 2).map(({ format, times }) => (
+                    <View key={format} style={styles.timesPreviewRow}>
+                      <Text style={styles.timesPreviewFormat}>{format}</Text>
+                      <Text style={styles.timesPreviewTimes} numberOfLines={1}>
+                        {times.slice(0, 3).join('  ')}
+                        {times.length > 3 ? ' …' : ''}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {/* Ver horarios button */}
+              {!!onVerHorarios && (
+                <TouchableOpacity
+                  style={styles.verHorariosBtn}
+                  onPress={(e) => { e.stopPropagation?.(); onVerHorarios(item); }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.verHorariosBtnText}>Ver horarios</Text>
+                </TouchableOpacity>
+              )}
+            </>
+          ) : (
+            <>
+              <View style={styles.metaRow}>
+                <Calendar size={12} color={colors.textDim} />
+                <Text style={styles.metaText}>{formatEventDateTime(item)}</Text>
+              </View>
+              {!!item.location && (
+                <View style={styles.metaRow}>
+                  <MapPin size={12} color={colors.textDim} />
+                  <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
+                </View>
+              )}
+              {item.price != null && (
+                <Text style={styles.price}>
+                  {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
+                </Text>
+              )}
+            </>
           )}
         </View>
+
         <LinearGradient
           colors={[catColor, 'transparent']}
           start={{ x: 0, y: 0 }}
@@ -186,5 +252,60 @@ const styles = StyleSheet.create({
   },
   bottomAccent: {
     height: 2,
+  },
+  soldOutBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: 'rgba(229, 62, 62, 0.90)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+  },
+  soldOutText: {
+    color: '#fff',
+    fontSize: 11,
+    fontFamily: 'Outfit_700Bold',
+    letterSpacing: 0.3,
+  },
+
+  // ── Cinema group extras ──────────────────────────────────────────────────────
+  timesPreview: {
+    marginTop: 7,
+    gap: 3,
+  },
+  timesPreviewRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  timesPreviewFormat: {
+    fontSize: 10,
+    fontFamily: 'Outfit_600SemiBold',
+    color: '#A0B4FF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    minWidth: 28,
+  },
+  timesPreviewTimes: {
+    fontSize: 11,
+    fontFamily: 'Outfit_400Regular',
+    color: colors.textDim,
+    flex: 1,
+  },
+  verHorariosBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+    backgroundColor: CINE_LIGHT,
+    borderWidth: 1,
+    borderColor: CINE_BORDER,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  verHorariosBtnText: {
+    color: '#A0B4FF',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
   },
 });

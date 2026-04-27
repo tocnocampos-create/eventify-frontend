@@ -7,6 +7,7 @@ export const PIN_NAVY = '#5FA9FF';
 export const PIN_NAVY_SELECTED = '#8BC4FF';
 export const PIN_TEATRO = '#3B82F6';
 export const PIN_COMEDIA = '#FF69B4';
+export const PIN_COMEDIA_VENUE = '#E53E3E';
 export const PIN_ARTE = '#00BCD4';
 export const PIN_CINE = '#3B52D8';
 export const PIN_GREEN = '#22C55E';
@@ -55,6 +56,7 @@ export const getVenuePinColor = (venueType) => {
   }
 
   if (normalizedType === 'Teatro') return PIN_TEATRO;
+  if (normalizedType === 'Comedia') return PIN_COMEDIA_VENUE;
   if (normalizedType === 'Cine') return PIN_CINE;
   if (normalizedType === 'Museo' || normalizedType === 'Centro Cultural' || normalizedType === 'Galería') {
     return PIN_ARTE;

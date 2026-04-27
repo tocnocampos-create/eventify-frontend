@@ -33,6 +33,7 @@ export function transformEvent(apiEvent, venueMap) {
     priceRange: apiEvent.price_range || null,
     keywords: apiEvent.keywords || [],
     coordinates: venue?.coordinates || null,
+    isSoldOut: apiEvent.is_sold_out || false,
   };
 }
 

@@ -11,6 +11,7 @@ export const VENUE_TYPES = Object.freeze([
   'Sala de Concierto',
   'Club',
   'Teatro',
+  'Comedia',
   'Arena',
   'Museo',
   'Centro Cultural',
@@ -62,6 +63,8 @@ export const LEGACY_VENUE_TYPE_MAP = Object.freeze({
   // Theaters
   'teatro': 'Teatro',
   'teatros': 'Teatro',
+  // Comedy venues
+  'comedia': 'Comedia',
   // Arenas / stadiums
   'arena': 'Arena',
   'arenas': 'Arena',
