@@ -567,16 +567,13 @@ const styles = StyleSheet.create({
   imageGalleryContainer: {
     width: '100%',
     height: 220,
-    overflow: 'hidden',
   },
   coverImage: {
+    width: '100%',
     height: 220,
-    alignSelf: 'flex-start',
   },
   imageItem: {
     height: 220,
-    overflow: 'hidden',
-    justifyContent: 'flex-start',
   },
   backButton: {
     position: 'absolute',
