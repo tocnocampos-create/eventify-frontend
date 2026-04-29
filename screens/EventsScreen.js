@@ -17,9 +17,11 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
+import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import { useSearch } from '../hooks/useSearch';
 import useDragScroll from '../hooks/useDragScroll';
 import { useNavigation } from '@react-navigation/native';
+import { groupCinemaEvents, getCinemaSchedule, formatScheduleDate } from '../utils/cinemaGrouping';
 import {
   Calendar,
   Music,
@@ -64,6 +66,8 @@ const PILL_CATEGORY_FILTER_MAP = {
   'Sunsets':        { keywords: ['sunset', 'atardecer', 'happy hour', 'rooftop', 'terraza'] },
   'Ferias':         { keywords: ['feria', 'mercado', 'bazar', 'food market'] },
   'Jazz':           { keywords: ['jazz', 'blues', 'swing'], types: ['Jazz'] },
+  'Música':         { keywords: ['música', 'concierto', 'rock', 'pop', 'electrónica', 'jazz', 'latin'],
+                      categories: ['Música'] },
   'Comedia':        { keywords: ['comedia', 'stand up', 'humor'], categories: ['Comedia'] },
   'Teatro':         { keywords: ['teatro', 'obra', 'drama', 'tragicomedia', 'monólogo'],
                       categories: ['Teatro'] },
@@ -155,12 +159,17 @@ function getDateRange(tag) {
   }
 }
 
+const CINE_BLUE = '#3B52D8';
+const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
+const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
+
 export default function EventsScreen({ route }) {
   const initialCategory = route?.params?.initialCategory;
   const initialQuery = route?.params?.initialQuery;
 
   const [searchQuery, setSearchQuery] = useState(initialQuery || '');
   const [debouncedQuery, setDebouncedQuery] = useState(initialQuery || '');
+  const [cinemaSheetGroup, setCinemaSheetGroup] = useState(null);
   const [activeFilter, setActiveFilter] = useState(initialCategory || null);
   const [selectedCategories, setSelectedCategories] = useState(
     initialCategory ? new Set([initialCategory]) : new Set()
@@ -379,7 +388,7 @@ export default function EventsScreen({ route }) {
   }, [selectedCategories, selectedTypes]);
 
   // === Lógica de filtros (client-side post-filtering) ===
-  const filteredEvents = useMemo(() => {
+  const filteredEventsRaw = useMemo(() => {
     let list = eventsApiData;
 
     // "Ahora" (Live) filter — requires real-time client-side check
@@ -437,6 +446,12 @@ export default function EventsScreen({ route }) {
   }, [eventsApiData, selectedDateTag, selectedCategories, selectedTypes,
       pillTimeFilter, pillKeywordFilter, pillCategoryKey]);
 
+  // Collapse cinema showtimes into one row per movie+venue
+  const filteredEvents = useMemo(
+    () => groupCinemaEvents(filteredEventsRaw),
+    [filteredEventsRaw],
+  );
+
   // Check if a filter category is active
   const isFilterActive = (filterName) => {
     if (filterName === 'Fecha') return selectedDateTag !== 'ALL';
@@ -466,7 +481,83 @@ export default function EventsScreen({ route }) {
     );
   };
 
+  const renderCinemaGroup = ({ item, index }) => {
+    const todaySchedule = getCinemaSchedule(item.showtimes || [], 1)[0];
+    const totalShowtimes = (item.showtimes || []).length;
+    return (
+      <Animated.View entering={FadeInDown.delay(Math.min(index, 8) * 40).springify().damping(15).stiffness(150)}>
+        <Pressable
+          style={({ pressed }) => [styles.eventCard, styles.cinemaCard, pressed && { transform: [{ scale: 0.97 }] }]}
+          onPress={() => navigation.navigate('EventDetail', { event: item })}
+        >
+          {/* Poster thumbnail + info side by side */}
+          <View style={styles.cinemaRow}>
+            {item.image ? (
+              <Image source={{ uri: item.image }} style={styles.cinemaPoster} resizeMode="cover" />
+            ) : (
+              <View style={[styles.cinemaPoster, styles.cinemaPosterPlaceholder]}>
+                <Ionicons name="film-outline" size={24} color={CINE_BLUE} />
+              </View>
+            )}
+
+            <View style={styles.cinemaInfo}>
+              <View style={[styles.badge, { backgroundColor: colors.badgeCine, alignSelf: 'flex-start', marginBottom: 6 }]}>
+                <Text style={styles.badgeText}>Cine</Text>
+              </View>
+              <Text style={styles.eventTitle} numberOfLines={2}>{item.title}</Text>
+              {!!(item.venueName || item.location) && (
+                <View style={styles.metaRow}>
+                  <MapPin size={12} color={colors.textDim} />
+                  <Text style={styles.metaText} numberOfLines={1}>{item.venueName || item.location}</Text>
+                </View>
+              )}
+              <Text style={styles.cinemaShowtimeCount}>
+                {totalShowtimes} {totalShowtimes === 1 ? 'función disponible' : 'funciones disponibles'}
+              </Text>
+            </View>
+          </View>
+
+          {/* Today's showtime pills */}
+          {todaySchedule && (
+            <View style={styles.cinemaSchedulePreview}>
+              {todaySchedule.formats.slice(0, 3).map(({ format, times }) => (
+                <View key={format} style={styles.cinemaFormatRow}>
+                  <Text style={styles.cinemaFormatLabel}>{format}</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.cinemaTimePills}>
+                    {times.slice(0, 6).map((t) => (
+                      <View key={t} style={styles.cinemaTimePill}>
+                        <Text style={styles.cinemaTimePillText}>{t}</Text>
+                      </View>
+                    ))}
+                  </ScrollView>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* Ver horarios CTA */}
+          <TouchableOpacity
+            style={styles.verHorariosRow}
+            onPress={(e) => { e.stopPropagation?.(); setCinemaSheetGroup(item); }}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.verHorariosText}>Ver todos los horarios</Text>
+            <Ionicons name="chevron-forward" size={14} color="#A0B4FF" />
+          </TouchableOpacity>
+
+          <LinearGradient
+            colors={[CINE_BLUE, 'transparent']}
+            start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
+            style={styles.bottomAccent}
+          />
+        </Pressable>
+      </Animated.View>
+    );
+  };
+
   const renderEvent = ({ item, index }) => {
+    if (item._isCinemaGroup) return renderCinemaGroup({ item, index });
+
     const category = normalizeCategory(item?.category);
     const catColor = categoryColors[category] || colors.primary;
     const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
@@ -484,16 +575,20 @@ export default function EventsScreen({ route }) {
               colors={['transparent', 'rgba(15, 5, 35, 0.85)']}
               style={StyleSheet.absoluteFillObject}
             />
-            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-              <Text style={styles.badgeText}>{category}</Text>
-            </View>
+            {!!category && (
+              <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+                <Text style={styles.badgeText}>{category}</Text>
+              </View>
+            )}
             <SaveButton eventId={item.id} />
           </View>
         ) : (
           <View style={[styles.imagePlaceholder]}>
-            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-              <Text style={styles.badgeText}>{category}</Text>
-            </View>
+            {!!category && (
+              <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+                <Text style={styles.badgeText}>{category}</Text>
+              </View>
+            )}
             <SaveButton eventId={item.id} />
           </View>
         )}
@@ -758,6 +853,13 @@ export default function EventsScreen({ route }) {
         style={{ flex: 1 }}
       />
       </View>
+
+      {/* Cinema showtime sheet */}
+      <CinemaShowtimeSheet
+        group={cinemaSheetGroup}
+        visible={!!cinemaSheetGroup}
+        onClose={() => setCinemaSheetGroup(null)}
+      />
     </TabScreenLayout>
   );
 }
@@ -991,6 +1093,86 @@ const styles = StyleSheet.create({
   },
   bottomAccent: {
     height: 2,
+  },
+
+  // ── Cinema group card ──────────────────────────────────────────────────────
+  cinemaCard: {
+    padding: 0,
+  },
+  cinemaRow: {
+    flexDirection: 'row',
+    padding: 12,
+    gap: 12,
+  },
+  cinemaPoster: {
+    width: 70,
+    height: 100,
+    borderRadius: 8,
+    flexShrink: 0,
+  },
+  cinemaPosterPlaceholder: {
+    backgroundColor: CINE_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: CINE_BORDER,
+  },
+  cinemaInfo: {
+    flex: 1,
+    justifyContent: 'flex-start',
+  },
+  cinemaShowtimeCount: {
+    color: '#A0B4FF',
+    fontSize: 12,
+    fontFamily: 'Outfit_500Medium',
+    marginTop: 4,
+  },
+  cinemaSchedulePreview: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+    gap: 6,
+  },
+  cinemaFormatRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  cinemaFormatLabel: {
+    color: colors.textDim,
+    fontSize: 10,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    minWidth: 32,
+  },
+  cinemaTimePills: {
+    gap: 6,
+  },
+  cinemaTimePill: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: CINE_LIGHT,
+    borderWidth: 1,
+    borderColor: CINE_BORDER,
+  },
+  cinemaTimePillText: {
+    color: '#A0B4FF',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  verHorariosRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  verHorariosText: {
+    color: '#A0B4FF',
+    fontSize: 12,
+    fontFamily: 'Outfit_600SemiBold',
   },
 
   // Modal

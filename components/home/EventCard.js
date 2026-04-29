@@ -13,6 +13,12 @@ import { getCinemaSchedule } from '../../utils/cinemaGrouping';
 
 const SPRING = { damping: 16, stiffness: 160, mass: 0.8 };
 const CINE_BLUE = colors.pinCine;
+
+// Fixed card dimensions — every card in the horizontal scroll is identical.
+const CARD_WIDTH   = 220;
+const IMAGE_HEIGHT = 120;
+// Total card height: image(120) + content(108) + accent(2) = 230
+const CARD_HEIGHT  = 230;
 const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
 const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
 
@@ -52,7 +58,7 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
     <TouchableOpacity
       onPress={() => onPress(item, index)}
       activeOpacity={0.9}
-      style={{ width: 250, marginHorizontal: 10 }}
+      style={{ width: CARD_WIDTH, marginHorizontal: 10 }}
     >
       <Animated.View style={[
         styles.card,
@@ -76,9 +82,11 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
               style={styles.imagePlaceholder}
             />
           )}
-          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-            <Text style={styles.badgeText}>{category}</Text>
-          </View>
+          {!!category && (
+            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+              <Text style={styles.badgeText}>{category}</Text>
+            </View>
+          )}
           {isSoldOut && (
             <View style={styles.soldOutBadge}>
               <Text style={styles.soldOutText}>Agotado</Text>
@@ -94,7 +102,7 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
               {/* Cinema meta: showtime count */}
               <View style={styles.metaRow}>
                 <Clock size={12} color={colors.textDim} />
-                <Text style={styles.metaText}>
+                <Text style={styles.metaText} numberOfLines={1}>
                   {totalShowtimes} {totalShowtimes === 1 ? 'función' : 'funciones'}
                 </Text>
               </View>
@@ -135,7 +143,7 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
             <>
               <View style={styles.metaRow}>
                 <Calendar size={12} color={colors.textDim} />
-                <Text style={styles.metaText}>{formatEventDateTime(item)}</Text>
+                <Text style={styles.metaText} numberOfLines={1}>{formatEventDateTime(item)}</Text>
               </View>
               {!!item.location && (
                 <View style={styles.metaRow}>
@@ -170,7 +178,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    minHeight: 220,
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     ...Platform.select({
       ios: {
         shadowColor: '#000',
@@ -198,15 +207,17 @@ const styles = StyleSheet.create({
   },
   imageContainer: {
     position: 'relative',
-    height: 120,
+    width: CARD_WIDTH,
+    height: IMAGE_HEIGHT,
+    flexShrink: 0,
   },
   image: {
-    width: '100%',
-    height: 120,
+    width: CARD_WIDTH,
+    height: IMAGE_HEIGHT,
   },
   imagePlaceholder: {
-    width: '100%',
-    height: 120,
+    width: CARD_WIDTH,
+    height: IMAGE_HEIGHT,
   },
   imageScrim: {
     ...StyleSheet.absoluteFillObject,
@@ -225,12 +236,17 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_500Medium',
   },
   content: {
-    padding: 10,
+    flex: 1,
+    paddingHorizontal: 10,
+    paddingTop: 10,
+    paddingBottom: 10,
+    overflow: 'hidden',
   },
   title: {
-    fontSize: 15,
+    fontSize: 13,
     fontFamily: 'Outfit_700Bold',
     color: '#fff',
+    lineHeight: 18,
     marginBottom: 4,
   },
   metaRow: {
@@ -243,6 +259,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Outfit_400Regular',
     color: colors.textDim,
+    flex: 1,
   },
   price: {
     fontSize: 13,

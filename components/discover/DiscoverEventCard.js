@@ -20,9 +20,11 @@ export default function DiscoverEventCard({ event, badgeColors = {}, onPress }) 
           colors={['transparent', 'rgba(15, 5, 35, 0.85)']}
           style={StyleSheet.absoluteFillObject}
         />
-        <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-          <Text style={styles.badgeText}>{category}</Text>
-        </View>
+        {!!category && (
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            <Text style={styles.badgeText}>{category}</Text>
+          </View>
+        )}
       </View>
       <View style={styles.info}>
         <Text style={styles.title} numberOfLines={2}>{event.title}</Text>

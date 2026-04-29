@@ -42,6 +42,7 @@ import CategoryGrid from '../components/discover/CategoryGrid';
 // pillCategoryKey drives both client-side (getCategoryFilter) and server-side
 // (keyword_category backend param) filtering against the events.keywords array.
 const SEARCH_CATEGORY_MAP = {
+  'Música':        { pillCategoryKey: 'Música' },
   'Jazz':          { pillCategoryKey: 'Jazz' },
   'Comedia':       { pillCategoryKey: 'Comedia' },
   'Nacional':      { pillCategoryKey: 'Nacional' },

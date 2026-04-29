@@ -26,6 +26,14 @@ export const CATEGORY_MAP = {
   "comedia": "Comedia",
   "arte": "Arte",
   "cine": "Cine",
+  // db variants / non-standard categories
+  "arte & cultura": "Arte",
+  "arte y cultura": "Arte",
+  "alternative rock": "Música",
+  "discoteca": "Vida Nocturna",
+  "vida nocturna": "Vida Nocturna",
+  "familia": "Familia",
+  "familiar": "Familiar",
 };
 
 // Subcategorías en ESPAÑOL (hardcoded fallback — backend /config endpoint is the source of truth)
@@ -129,7 +137,7 @@ export function stripAccents(s) {
 }
 
 export function normalizeCategory(input) {
-  if (!input) return undefined;
+  if (!input) return null;
   const stripped = stripAccents(String(input).trim().toLowerCase());
   return CATEGORY_MAP[stripped] || input;
 }
