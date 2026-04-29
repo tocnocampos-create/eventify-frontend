@@ -57,6 +57,7 @@ export function transformVenue(apiVenue) {
     profileImage: apiVenue.profile_image_url || null,
     websiteUrl: apiVenue.website_url || null,
     menuPdfUrl: apiVenue.menu_pdf_url || null,
+    address: apiVenue.address || null,
     description: apiVenue.description || null,
     stars: apiVenue.stars ?? null,
     schedule: apiVenue.schedule || null,

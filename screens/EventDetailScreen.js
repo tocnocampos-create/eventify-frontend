@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef } from 'react';
+import React, { useMemo, useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
 import { formatPrice } from '../utils/mapHelpers';
 import { getCinemaSchedule, formatScheduleDate } from '../utils/cinemaGrouping';
+import { LinearGradient } from 'expo-linear-gradient';
 import ReviewModal from '../components/ReviewModal';
 import { useIsEventSaved, useToggleSaveEvent } from '../hooks/useUserPreferences';
 import { GOOGLE_MAPS_API_KEY } from '../config/env';
@@ -239,6 +240,32 @@ export default function EventDetailScreen() {
   const mapRef = useRef(null);
   const webMapRef = useRef(null);
   const [currentRegion, setCurrentRegion] = useState(null);
+
+  // Collapsible description
+  const DESC_COLLAPSED_LINES = 5;
+  const DESC_LINE_HEIGHT = 22; // matches styles.description lineHeight
+  const COLLAPSED_HEIGHT = DESC_COLLAPSED_LINES * DESC_LINE_HEIGHT;
+  const [descExpanded, setDescExpanded] = useState(false);
+  const [descFullHeight, setDescFullHeight] = useState(null);
+  const [descNeedsCollapse, setDescNeedsCollapse] = useState(false);
+  const descAnimHeight = useRef(new Animated.Value(COLLAPSED_HEIGHT)).current;
+
+  useEffect(() => {
+    if (descFullHeight === null) return;
+    // Only animate if text is actually taller than the collapsed threshold
+    if (descFullHeight <= COLLAPSED_HEIGHT) {
+      setDescNeedsCollapse(false);
+      return;
+    }
+    setDescNeedsCollapse(true);
+    Animated.timing(descAnimHeight, {
+      toValue: descExpanded ? descFullHeight : COLLAPSED_HEIGHT,
+      duration: 280,
+      useNativeDriver: false,
+    }).start();
+  }, [descExpanded, descFullHeight]);
+
+  const handleDescToggle = () => setDescExpanded(v => !v);
 
   // Collapsing header animation
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -489,7 +516,66 @@ export default function EventDetailScreen() {
         <View style={styles.contentCard}>
         <Text style={styles.title}>{event?.title || 'Evento'}</Text>
 
-        {!!event?.description && <Text style={styles.description}>{event.description}</Text>}
+        {!!event?.description && (
+          <View style={styles.descWrapper}>
+            <Animated.View
+              style={[
+                styles.descAnimContainer,
+                descNeedsCollapse && { height: descAnimHeight },
+              ]}
+            >
+              {/* Hidden full-height text used only to measure the true height */}
+              <Text
+                style={[styles.description, styles.descMeasure]}
+                onLayout={(e) => {
+                  const h = e.nativeEvent.layout.height;
+                  if (descFullHeight === null) {
+                    setDescFullHeight(h);
+                    // Initialise the animated value synchronously to avoid flash
+                    descAnimHeight.setValue(Math.min(h, COLLAPSED_HEIGHT));
+                  }
+                }}
+              >
+                {event.description}
+              </Text>
+              {/* Visible text — truncated when collapsed */}
+              <Text
+                style={styles.description}
+                numberOfLines={descNeedsCollapse && !descExpanded ? DESC_COLLAPSED_LINES : undefined}
+              >
+                {event.description}
+              </Text>
+            </Animated.View>
+
+            {/* Fade gradient shown only when collapsed and text overflows */}
+            {descNeedsCollapse && !descExpanded && (
+              <LinearGradient
+                colors={['rgba(17,9,51,0)', '#110933']}
+                style={styles.descFade}
+                pointerEvents="none"
+              />
+            )}
+
+            {/* Ver más / Ver menos button */}
+            {descNeedsCollapse && (
+              <TouchableOpacity
+                onPress={handleDescToggle}
+                activeOpacity={0.75}
+                style={styles.descToggleBtn}
+              >
+                <Text style={styles.descToggleText}>
+                  {descExpanded ? 'Ver menos' : 'Ver más'}
+                </Text>
+                <Ionicons
+                  name={descExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={14}
+                  color={ACCENT}
+                  style={{ marginLeft: 4 }}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
 
         {isCinemaGroup ? (
           <View style={styles.cinemaScheduleSection}>
@@ -544,7 +630,12 @@ export default function EventDetailScreen() {
         {!!(event?.venueName || event?.location) && (
           <TouchableOpacity style={styles.locationContainer} onPress={handleVenuePress}>
             <Ionicons name="location" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.locationText}>{event.venueName || event.location}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.locationText}>{event.venueName || event.location}</Text>
+              {!!detailVenue?.address && (
+                <Text style={styles.locationAddress}>{detailVenue.address}</Text>
+              )}
+            </View>
           </TouchableOpacity>
         )}
 
@@ -555,9 +646,8 @@ export default function EventDetailScreen() {
             isCinemaGroup && styles.cinemaTicketButton,
             isSoldOut && styles.ticketButtonSoldOut,
           ]}
-          onPress={isSoldOut ? undefined : handleGetTickets}
-          activeOpacity={isSoldOut ? 1 : 0.9}
-          disabled={isSoldOut}
+          onPress={handleGetTickets}
+          activeOpacity={0.9}
         >
           <Text style={[styles.ticketButtonText, isSoldOut && styles.ticketButtonTextSoldOut]}>
             {isSoldOut ? 'Agotado' : isCinemaGroup ? 'Comprar tickets' : 'Obtener Tickets'}
@@ -820,7 +910,32 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   title: { fontSize: 24, fontWeight: '800', color: '#fff', marginBottom: 12 },
-  description: { fontSize: 15, color: '#ccc', marginBottom: 20, lineHeight: 22 },
+  description: { fontSize: 15, color: '#ccc', lineHeight: 22 },
+  descWrapper: { marginBottom: 20 },
+  descAnimContainer: { overflow: 'hidden' },
+  // Positioned off-screen so it measures height without affecting layout
+  descMeasure: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    opacity: 0,
+    zIndex: -1,
+  },
+  descFade: {
+    position: 'absolute',
+    bottom: 28, // sits just above the toggle button
+    left: 0,
+    right: 0,
+    height: 48,
+  },
+  descToggleBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    alignSelf: 'flex-start',
+  },
+  descToggleText: { color: ACCENT, fontSize: 14, fontWeight: '700' },
   dateText: { fontSize: 14, color: '#ddd', marginBottom: 10, fontWeight: '500' },
 
   locationContainer: {
@@ -833,6 +948,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   locationText: { color: '#fff', fontSize: 14 },
+  locationAddress: { color: 'rgba(255,255,255,0.6)', fontSize: 12, marginTop: 2 },
 
   ticketButton: {
     backgroundColor: ACCENT,
