@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View, Text, FlatList, ScrollView, Platform, StyleSheet, TouchableOpacity,
 } from 'react-native';
@@ -9,10 +9,12 @@ import Animated, {
 import { CalendarX2, X } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import EventCard from './EventCard';
+import CinemaShowtimeSheet from '../CinemaShowtimeSheet';
 import colors from '../../theme/colors';
 import { TAB_BAR_HEIGHT } from '../FloatingTabBar';
 import { categoryColors, getCategoryBorderColor } from '../../utils/pinColors';
 import useDragScroll from '../../hooks/useDragScroll';
+import { groupCinemaEvents } from '../../utils/cinemaGrouping';
 
 const SPRING_CONFIG = { damping: 18, stiffness: 140, mass: 0.9 };
 
@@ -40,6 +42,12 @@ export default function BottomCarousel({
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12) + TAB_BAR_HEIGHT + 14;
 
+  // Cinema showtime sheet state
+  const [cinemaSheetGroup, setCinemaSheetGroup] = useState(null);
+
+  // Group cinema events so one card = one movie (not one card per showtime)
+  const groupedEvents = useMemo(() => groupCinemaEvents(filteredEvents), [filteredEvents]);
+
   // ─── Entrance animation ───
   const entrance = useSharedValue(0);
 
@@ -61,16 +69,17 @@ export default function BottomCarousel({
     return !categoryColors.hasOwnProperty(filter);
   });
 
-  const hasEvents = filteredEvents.length > 0;
+  const hasEvents = groupedEvents.length > 0;
 
   return (
+    <>
     <Animated.View style={[styles.wrapper, { bottom: bottomOffset }, entranceStyle]}>
       {/* ─── Floating pill: filter chips + count ─── */}
       {(carouselFilters.length > 0 || hasEvents) && (
         <View style={styles.pillRow}>
           {hasEvents && (
             <View style={styles.countPill}>
-              <Text style={styles.countText}>{filteredEvents.length} eventos</Text>
+              <Text style={styles.countText}>{groupedEvents.length} eventos</Text>
             </View>
           )}
           {carouselFilters.length > 0 && (
@@ -114,25 +123,26 @@ export default function BottomCarousel({
           {venueEvents && venueEvents.length > 0 ? (
             <FlatList
               horizontal
-              data={venueEvents}
+              data={groupCinemaEvents(venueEvents)}
               renderItem={({ item, index }) => (
                 <EventCard
                   item={item}
                   index={index}
                   isSelected={false}
                   onPress={(ev) => onCardPress(ev, null)}
+                  onVerHorarios={item._isCinemaGroup ? setCinemaSheetGroup : undefined}
                 />
               )}
               keyExtractor={(item) => item.id.toString()}
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ paddingHorizontal: 12 }}
-              snapToInterval={270}
+              snapToInterval={240}
               snapToAlignment="start"
               decelerationRate={Platform.OS === 'web' ? 0.985 : 'fast'}
               scrollEventThrottle={16}
               getItemLayout={(data, index) => ({
-                length: 270,
-                offset: 270 * index,
+                length: 240,
+                offset: 240 * index,
                 index,
               })}
             />
@@ -150,26 +160,27 @@ export default function BottomCarousel({
         <AnimatedFlatList
           ref={dragRef}
           horizontal
-          data={filteredEvents}
+          data={groupedEvents}
           renderItem={({ item, index }) => (
             <EventCard
               item={item}
               index={index}
               isSelected={selectedIndex === index}
               onPress={onCardPress}
+              onVerHorarios={item._isCinemaGroup ? setCinemaSheetGroup : undefined}
             />
           )}
           keyExtractor={(item) => item.id.toString()}
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={{ paddingHorizontal: 12 }}
-          snapToInterval={270}
+          snapToInterval={240}
           snapToAlignment="start"
           decelerationRate={Platform.OS === 'web' ? 0.985 : 'fast'}
           pagingEnabled={Platform.OS === 'web'}
           scrollEventThrottle={16}
           getItemLayout={(data, index) => ({
-            length: 270,
-            offset: 270 * index,
+            length: 240,
+            offset: 240 * index,
             index,
           })}
           initialScrollIndex={0}
@@ -188,6 +199,14 @@ export default function BottomCarousel({
         </View>
       )}
     </Animated.View>
+
+    {/* Cinema showtime sheet — rendered outside the Animated.View to avoid clipping */}
+    <CinemaShowtimeSheet
+      group={cinemaSheetGroup}
+      visible={!!cinemaSheetGroup}
+      onClose={() => setCinemaSheetGroup(null)}
+    />
+    </>
   );
 }
 

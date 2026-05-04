@@ -14,6 +14,9 @@ import {
   fetchSettings,
   updateSettings,
   fetchMyReviews,
+  saveVenueVisit,
+  fetchVenueVisits,
+  deleteVenueVisit,
 } from '../api/userPreferences';
 import { transformVenue } from '../api/transformers';
 
@@ -132,6 +135,35 @@ export function useUpdateSettings() {
     mutationFn: updateSettings,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['userSettings'] });
+    },
+  });
+}
+
+// ── Venue visits (outdoor agenda) ─────────────────────────────
+
+export function useVenueVisits() {
+  return useQuery({
+    queryKey: ['venueVisits'],
+    queryFn: fetchVenueVisits,
+  });
+}
+
+export function useSaveVenueVisit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: saveVenueVisit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['venueVisits'] });
+    },
+  });
+}
+
+export function useDeleteVenueVisit() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: deleteVenueVisit,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['venueVisits'] });
     },
   });
 }

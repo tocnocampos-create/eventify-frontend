@@ -12,12 +12,12 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Calendar, MapPin } from 'lucide-react-native';
+import { Calendar, MapPin, TreePine, Trash2 } from 'lucide-react-native';
 import colors from '../theme/colors';
 import GlassOverlay from '../components/home/GlassOverlay';
 import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
-import { useSavedEvents } from '../hooks/useUserPreferences';
+import { useSavedEvents, useVenueVisits, useDeleteVenueVisit } from '../hooks/useUserPreferences';
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
@@ -53,9 +53,16 @@ function formatEventDateTime(event) {
   return event?.timeStart ? `${datePart}, ${event.timeStart}` : datePart;
 }
 
+const GREEN = '#2D7D46';
+const GREEN_LIGHT = 'rgba(45, 125, 70, 0.15)';
+const GREEN_BORDER = 'rgba(45, 125, 70, 0.3)';
+
 export default function MyAgendaScreen({ navigation }) {
-  const { data: rawEvents = [], isLoading } = useSavedEvents();
+  const { data: rawEvents = [], isLoading: loadingEvents } = useSavedEvents();
+  const { data: venueVisits = [], isLoading: loadingVisits } = useVenueVisits();
+  const { mutate: deleteVisit } = useDeleteVenueVisit();
   const events = rawEvents.map(toFrontendEvent);
+  const isLoading = loadingEvents || loadingVisits;
 
   const renderEventCard = (event) => {
     const category = normalizeCategory(event?.category);
@@ -114,6 +121,56 @@ export default function MyAgendaScreen({ navigation }) {
     );
   };
 
+  const renderVenueVisitCard = (visit) => {
+    const dateStr = visit.scheduled_date
+      ? dayjs(visit.scheduled_date).format('D [de] MMMM')
+      : null;
+    const timeStr = visit.scheduled_time || null;
+
+    const confirmDelete = () => {
+      deleteVisit(visit.id);
+    };
+
+    return (
+      <View key={`visit-${visit.id}`} style={styles.visitCard}>
+        <View style={styles.visitIconWrap}>
+          <TreePine size={20} color={GREEN} />
+        </View>
+        <View style={styles.visitInfo}>
+          <Text style={styles.visitName} numberOfLines={2}>{visit.venue_name}</Text>
+          {visit.venue_type && (
+            <Text style={styles.visitType}>{visit.venue_type}</Text>
+          )}
+          {dateStr && (
+            <View style={styles.metaRow}>
+              <Calendar size={13} color={colors.textDim} />
+              <Text style={styles.metaText}>
+                {dateStr}{timeStr ? `, ${timeStr}` : ''}
+              </Text>
+            </View>
+          )}
+          {visit.venue_city && (
+            <View style={styles.metaRow}>
+              <MapPin size={13} color={colors.textDim} />
+              <Text style={styles.metaText}>{visit.venue_city}</Text>
+            </View>
+          )}
+        </View>
+        <TouchableOpacity
+          style={styles.deleteBtn}
+          onPress={confirmDelete}
+          hitSlop={8}
+          activeOpacity={0.7}
+        >
+          <Trash2 size={16} color={colors.textDim} />
+        </TouchableOpacity>
+        <View style={[styles.bottomAccent, { backgroundColor: GREEN }]} />
+      </View>
+    );
+  };
+
+  const hasContent = events.length > 0 || venueVisits.length > 0;
+
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       {/* Header */}
@@ -129,13 +186,24 @@ export default function MyAgendaScreen({ navigation }) {
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={colors.primary} />
         </View>
-      ) : events.length > 0 ? (
+      ) : hasContent ? (
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          {events.map(renderEventCard)}
+          {venueVisits.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Visitas al aire libre</Text>
+              {venueVisits.map(renderVenueVisitCard)}
+            </>
+          )}
+          {events.length > 0 && (
+            <>
+              <Text style={styles.sectionLabel}>Eventos guardados</Text>
+              {events.map(renderEventCard)}
+            </>
+          )}
         </ScrollView>
       ) : (
         <View style={styles.centered}>
@@ -269,5 +337,69 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Outfit_400Regular',
     textAlign: 'center',
+  },
+  sectionLabel: {
+    color: colors.textDim,
+    fontSize: 11,
+    fontFamily: 'Outfit_600SemiBold',
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    marginBottom: 10,
+    marginTop: 4,
+  },
+  visitCard: {
+    backgroundColor: 'rgba(28, 10, 62, 0.82)',
+    borderRadius: 16,
+    marginBottom: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: GREEN_BORDER,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    padding: 14,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.25, shadowRadius: 8 },
+      android: { elevation: 4 },
+      web: { boxShadow: '0 4px 16px rgba(0,0,0,0.3)' },
+    }),
+  },
+  visitIconWrap: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: GREEN_LIGHT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+    flexShrink: 0,
+    borderWidth: 1,
+    borderColor: GREEN_BORDER,
+  },
+  visitInfo: {
+    flex: 1,
+  },
+  visitName: {
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: 'Outfit_700Bold',
+    marginBottom: 2,
+  },
+  visitType: {
+    color: '#4ADE80',
+    fontSize: 11,
+    fontFamily: 'Outfit_500Medium',
+    marginBottom: 6,
+  },
+  deleteBtn: {
+    padding: 4,
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+  bottomAccent: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 2,
   },
 });

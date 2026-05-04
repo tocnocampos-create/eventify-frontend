@@ -75,6 +75,23 @@ export async function updateSettings(settings) {
   return data;
 }
 
+// ── Venue visits (outdoor agenda) ─────────────────────────────
+
+export async function saveVenueVisit(visitData) {
+  const { data } = await apiClient.post('/me/venue-visits', visitData);
+  return data;
+}
+
+export async function fetchVenueVisits() {
+  const { data } = await apiClient.get('/me/venue-visits');
+  return data;
+}
+
+export async function deleteVenueVisit(visitId) {
+  const { data } = await apiClient.delete(`/me/venue-visits/${visitId}`);
+  return data;
+}
+
 // ── My reviews ────────────────────────────────────────────────
 
 export async function fetchMyReviews() {
