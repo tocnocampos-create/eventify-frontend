@@ -29,9 +29,11 @@ async function markTourDone() {
 }
 
 // ─── Step definitions ─────────────────────────────────────────────────────────
-// arrowDir: 'up'   → tooltip is BELOW the target, arrow points up toward it
-// arrowDir: 'down' → tooltip is ABOVE the target, arrow points down toward it
-// fakePin: { cx, cy } → render a decorative pin at that position instead of a cutout
+// arrowDir: 'up'    → tooltip is BELOW the target, arrow points up toward it
+// arrowDir: 'down'  → tooltip is ABOVE the target, arrow points down toward it
+// fakePin: { cx, cy } → render a decorative pin instead of a cutout
+// lightOverlay: true  → use 0.50 opacity so the real map shows through
+// bottomTooltip: true → pin tooltip at bottom center, arrow points up toward map
 function buildSteps(w, h, insets) {
   const tabBarH = 72;
   const tabBarBottom = Math.max(insets.bottom, 12);
@@ -42,7 +44,9 @@ function buildSteps(w, h, insets) {
       id: 'map',
       title: 'Explora eventos en tiempo real',
       subtitle: 'El mapa muestra todos los eventos culturales de Santiago. Navégalo libremente.',
-      target: { x: w * 0.15, y: insets.top + 130, w: w * 0.7, h: h * 0.26, radius: 16 },
+      target: null,
+      lightOverlay: true,
+      bottomTooltip: true,
       arrowDir: 'up',
     },
     {
@@ -94,10 +98,12 @@ function buildSteps(w, h, insets) {
 
 // ─── Overlay helper ───────────────────────────────────────────────────────────
 const DARK = 'rgba(0,0,0,0.80)';
+const LIGHT = 'rgba(0,0,0,0.50)';
 
-function CutoutOverlay({ target }) {
+function CutoutOverlay({ target, light }) {
+  const bg = light ? LIGHT : DARK;
   if (!target) {
-    return <View style={[StyleSheet.absoluteFill, { backgroundColor: DARK }]} />;
+    return <View style={[StyleSheet.absoluteFill, { backgroundColor: bg }]} />;
   }
   const { x, y, w, h, radius } = target;
   return (
@@ -231,6 +237,13 @@ export default function OnboardingTour() {
     tooltipLeft = (w - TOOLTIP_W) / 2;
     tooltipTop = h / 2 - CARD_H / 2 - 20;
     arrowOffsetLeft = null;
+  } else if (current.bottomTooltip) {
+    // Tooltip at bottom center, arrow at top pointing up toward the map
+    const tabBarBottom = Math.max(insets.bottom, 12);
+    tooltipLeft = (w - TOOLTIP_W) / 2;
+    tooltipTop = h - 200 - tabBarBottom - CARD_H - ARROW_H - 12;
+    tooltipTop = Math.max(insets.top + 8, tooltipTop);
+    arrowOffsetLeft = TOOLTIP_W / 2 - ARROW_H; // centered arrow
   } else if (current.fakePin) {
     const { cx, cy } = current.fakePin;
     tooltipLeft = Math.max(20, Math.min(w - TOOLTIP_W - 20, cx - TOOLTIP_W / 2));
@@ -274,7 +287,7 @@ export default function OnboardingTour() {
     <Modal transparent animationType="none" visible={visible} statusBarTranslucent presentationStyle="overFullScreen">
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayFade }]}>
         {/* Dark overlay with optional cutout */}
-        <CutoutOverlay target={current.target} />
+        <CutoutOverlay target={current.target} light={current.lightOverlay} />
 
         {/* Fake pin — step 4 only */}
         {current.fakePin && (
