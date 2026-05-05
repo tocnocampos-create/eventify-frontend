@@ -3,6 +3,7 @@ import { useMemo } from 'react';
 import { fetchDiscover } from '../api/discover';
 import { transformEvent, transformVenue } from '../api/transformers';
 import { assignDateTags } from '../utils/filtering';
+import { useAuth } from '../contexts/AuthContext';
 
 function transformEventWithInlineVenue(apiEvent) {
   const venue = apiEvent.venue ? transformVenue(apiEvent.venue) : null;
@@ -15,8 +16,10 @@ function transformEventList(events) {
 }
 
 export function useDiscover({ lat, lon, city, radiusKm } = {}) {
+  const { user } = useAuth();
+  const userId = user?.id ?? null;
   const queryResult = useQuery({
-    queryKey: ['discover', { lat, lon, city, radiusKm }],
+    queryKey: ['discover', { lat, lon, city, radiusKm, userId }],
     queryFn: () => fetchDiscover({ lat, lon, city, radiusKm }),
     staleTime: 5 * 60 * 1000,
   });

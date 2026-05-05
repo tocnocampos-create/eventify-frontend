@@ -7,6 +7,9 @@ import {
   TouchableOpacity,
   Switch,
   Modal,
+  TextInput,
+  Linking,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -19,6 +22,7 @@ import {
   Ticket,
   CalendarDays,
   X,
+  MessageSquare,
 } from 'lucide-react-native';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
@@ -58,11 +62,23 @@ export default function ProfileScreen({ navigation }) {
   const { data: settings } = useUserSettings();
   const updateSettingsMutation = useUpdateSettings();
   const [interestModalVisible, setInterestModalVisible] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
 
   const notificationsEnabled = settings?.notifications_enabled ?? true;
 
   const handleNotificationsToggle = (value) => {
     updateSettingsMutation.mutate({ notifications_enabled: value });
+  };
+
+  const handleSendFeedback = () => {
+    const trimmed = feedbackText.trim();
+    if (!trimmed) return;
+    const subject = encodeURIComponent('Feedback Eventify');
+    const body = encodeURIComponent(trimmed);
+    Linking.openURL(`mailto:hola@eventifyapp.cl?subject=${subject}&body=${body}`).catch(() => {
+      Alert.alert('Error', 'No se pudo abrir el cliente de correo.');
+    });
+    setFeedbackText('');
   };
 
   const handleSaveInterests = async (newInterests) => {
@@ -173,6 +189,31 @@ export default function ProfileScreen({ navigation }) {
               <ChevronRight size={18} color={colors.textDim} />
             </TouchableOpacity>
           ))}
+        </View>
+
+        {/* Feedback */}
+        <View style={styles.section}>
+          <View style={styles.sectionLabelRow}>
+            <MessageSquare size={16} color={colors.textDim} />
+            <Text style={styles.sectionLabel}>Enviar feedback</Text>
+          </View>
+          <TextInput
+            style={styles.feedbackInput}
+            value={feedbackText}
+            onChangeText={setFeedbackText}
+            placeholder="¿Qué mejorarías o qué te faltó?"
+            placeholderTextColor={colors.textDim}
+            multiline
+            numberOfLines={3}
+            textAlignVertical="top"
+          />
+          <TouchableOpacity
+            style={[styles.feedbackBtn, !feedbackText.trim() && styles.feedbackBtnDim]}
+            onPress={handleSendFeedback}
+            activeOpacity={feedbackText.trim() ? 0.8 : 1}
+          >
+            <Text style={styles.feedbackBtnText}>Enviar feedback</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Logout */}
@@ -323,6 +364,32 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     fontSize: 14,
     fontFamily: 'Outfit_400Regular',
+  },
+  feedbackInput: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 10,
+    padding: 12,
+    color: colors.text,
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 14,
+    minHeight: 80,
+    marginBottom: 10,
+  },
+  feedbackBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: 10,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  feedbackBtnDim: {
+    opacity: 0.45,
+  },
+  feedbackBtnText: {
+    color: '#fff',
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 15,
   },
   logoutButton: {
     marginTop: 32,

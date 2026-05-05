@@ -34,7 +34,7 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
   const category = normalizeCategory(item?.category);
   const catColor = categoryColors[category] || colors.primary;
   const isSoldOut = !!item?.isSoldOut;
-  const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
+  const badgeBg = category ? (badgeColors[category] || 'rgba(159, 123, 255, 0.2)') : 'rgba(120, 120, 140, 0.3)';
   const isCinemaGroup = !!item?._isCinemaGroup;
 
   // ─── Selection animation ───
@@ -82,11 +82,9 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
               style={styles.imagePlaceholder}
             />
           )}
-          {!!category && (
-            <View style={[styles.badge, { backgroundColor: badgeBg }]}>
-              <Text style={styles.badgeText}>{category}</Text>
-            </View>
-          )}
+          <View style={[styles.badge, { backgroundColor: badgeBg }]}>
+            <Text style={styles.badgeText}>{category || 'Evento'}</Text>
+          </View>
           {isSoldOut && (
             <View style={styles.soldOutBadge}>
               <Text style={styles.soldOutText}>Agotado</Text>
