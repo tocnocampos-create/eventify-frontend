@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  Modal, useWindowDimensions,
+  Modal, Platform, useWindowDimensions,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,6 +31,7 @@ async function markTourDone() {
 // ─── Step definitions ─────────────────────────────────────────────────────────
 // arrowDir: 'up'   → tooltip is BELOW the target, arrow points up toward it
 // arrowDir: 'down' → tooltip is ABOVE the target, arrow points down toward it
+// fakePin: { cx, cy } → render a decorative pin at that position instead of a cutout
 function buildSteps(w, h, insets) {
   const tabBarH = 72;
   const tabBarBottom = Math.max(insets.bottom, 12);
@@ -62,7 +63,8 @@ function buildSteps(w, h, insets) {
       id: 'pin',
       title: 'Toca cualquier pin',
       subtitle: 'Cada pin del mapa es un evento o venue. Tócalo para ver todos los detalles.',
-      target: { x: w / 2 - 22, y: h * 0.38, w: 44, h: 44, radius: 22 },
+      target: null,
+      fakePin: { cx: w / 2, cy: h * 0.46 },
       arrowDir: 'down',
     },
     {
@@ -91,32 +93,110 @@ function buildSteps(w, h, insets) {
 }
 
 // ─── Overlay helper ───────────────────────────────────────────────────────────
-function CutoutOverlay({ target, screenW, screenH }) {
-  const DARK = 'rgba(0,0,0,0.80)';
+const DARK = 'rgba(0,0,0,0.80)';
+
+function CutoutOverlay({ target }) {
   if (!target) {
     return <View style={[StyleSheet.absoluteFill, { backgroundColor: DARK }]} />;
   }
   const { x, y, w, h, radius } = target;
   return (
     <>
-      {/* Top */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, height: y, backgroundColor: DARK }} />
-      {/* Bottom */}
       <View style={{ position: 'absolute', top: y + h, left: 0, right: 0, bottom: 0, backgroundColor: DARK }} />
-      {/* Left */}
       <View style={{ position: 'absolute', top: y, left: 0, width: x, height: h, backgroundColor: DARK }} />
-      {/* Right */}
       <View style={{ position: 'absolute', top: y, left: x + w, right: 0, height: h, backgroundColor: DARK }} />
-      {/* Highlight ring */}
-      <View
-        style={{
-          position: 'absolute', top: y, left: x, width: w, height: h,
-          borderWidth: 2.5, borderColor: '#BFA0FF', borderRadius: radius,
-          shadowColor: '#BFA0FF', shadowOpacity: 0.7, shadowRadius: 14,
-          elevation: 8,
-        }}
-      />
+      <View style={{
+        position: 'absolute', top: y, left: x, width: w, height: h,
+        borderWidth: 2.5, borderColor: '#BFA0FF', borderRadius: radius,
+        shadowColor: '#BFA0FF', shadowOpacity: 0.7, shadowRadius: 14,
+        elevation: 8,
+      }} />
     </>
+  );
+}
+
+// ─── Fake map pin (Música cluster style) ─────────────────────────────────────
+const PIN_COLOR = '#9B5DE5';
+const PIN_BODY_SIZE = 38;
+const PIN_BODY_RADIUS = PIN_BODY_SIZE / 2;
+
+function FakeMapPin({ cx, cy }) {
+  // cy = vertical center of the pin body circle
+  return (
+    <View style={{
+      position: 'absolute',
+      left: cx - 26,   // 52px wide container → center at cx
+      top: cy - PIN_BODY_RADIUS,
+      width: 52,
+      alignItems: 'center',
+    }}>
+      {/* Glow ring */}
+      <View style={{
+        position: 'absolute',
+        top: -5,
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: PIN_COLOR + '28',
+      }} />
+
+      {/* Body */}
+      <View style={{
+        width: PIN_BODY_SIZE,
+        height: PIN_BODY_SIZE,
+        borderRadius: PIN_BODY_RADIUS,
+        backgroundColor: PIN_COLOR,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 2.5,
+        borderColor: 'rgba(255,255,255,0.85)',
+        overflow: 'hidden',
+        shadowColor: PIN_COLOR,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.65,
+        shadowRadius: 14,
+        elevation: 12,
+      }}>
+        {/* Glass shine */}
+        <View style={{
+          position: 'absolute',
+          top: 0, left: 0, right: 0,
+          height: '45%',
+          backgroundColor: 'rgba(255,255,255,0.20)',
+          borderTopLeftRadius: PIN_BODY_RADIUS,
+          borderTopRightRadius: PIN_BODY_RADIUS,
+        }} />
+        {/* Count */}
+        <Text style={{
+          color: '#FFFFFF',
+          fontSize: 15,
+          fontFamily: 'Outfit_700Bold',
+          textShadowColor: 'rgba(0,0,0,0.3)',
+          textShadowOffset: { width: 0, height: 1 },
+          textShadowRadius: 2,
+          zIndex: 1,
+        }}>5</Text>
+      </View>
+
+      {/* Pointer triangle */}
+      <View style={{
+        width: 0, height: 0,
+        borderLeftWidth: 7, borderRightWidth: 7,
+        borderTopWidth: 10,
+        borderLeftColor: 'transparent', borderRightColor: 'transparent',
+        borderTopColor: PIN_COLOR,
+        marginTop: -3,
+      }} />
+
+      {/* Drop shadow beneath pointer */}
+      <View style={{
+        width: 14, height: 4,
+        borderRadius: 7,
+        backgroundColor: 'rgba(0,0,0,0.18)',
+        marginTop: 1,
+      }} />
+    </View>
   );
 }
 
@@ -131,14 +211,11 @@ export default function OnboardingTour() {
   const overlayFade = useRef(new Animated.Value(0)).current;
   const stepFade = useRef(new Animated.Value(1)).current;
 
-  // Check AsyncStorage on mount
   useEffect(() => {
     getTourDone().then((done) => {
       if (!done) {
         setVisible(true);
-        Animated.timing(overlayFade, {
-          toValue: 1, duration: 400, useNativeDriver: true,
-        }).start();
+        Animated.timing(overlayFade, { toValue: 1, duration: 400, useNativeDriver: true }).start();
       }
     });
   }, []);
@@ -150,25 +227,30 @@ export default function OnboardingTour() {
   const TOOLTIP_W = Math.min(w - 40, 320);
   let tooltipLeft, tooltipTop, arrowOffsetLeft;
 
-  if (current.isFinal || !current.target) {
+  if (current.isFinal) {
     tooltipLeft = (w - TOOLTIP_W) / 2;
     tooltipTop = h / 2 - CARD_H / 2 - 20;
     arrowOffsetLeft = null;
-  } else {
+  } else if (current.fakePin) {
+    const { cx, cy } = current.fakePin;
+    tooltipLeft = Math.max(20, Math.min(w - TOOLTIP_W - 20, cx - TOOLTIP_W / 2));
+    arrowOffsetLeft = Math.max(16, Math.min(TOOLTIP_W - 36, cx - tooltipLeft - ARROW_H));
+    // tooltip sits above the pin body
+    tooltipTop = cy - PIN_BODY_RADIUS - CARD_H - ARROW_H - 10;
+    tooltipTop = Math.max(insets.top + 8, Math.min(h - CARD_H - 40, tooltipTop));
+  } else if (current.target) {
     const { x: tx, y: ty, w: tw, h: th } = current.target;
     const targetCX = tx + tw / 2;
     tooltipLeft = Math.max(20, Math.min(w - TOOLTIP_W - 20, targetCX - TOOLTIP_W / 2));
     arrowOffsetLeft = Math.max(16, Math.min(TOOLTIP_W - 36, targetCX - tooltipLeft - ARROW_H));
-
-    if (current.arrowDir === 'up') {
-      // tooltip sits below target
-      tooltipTop = ty + th + ARROW_H + 4;
-    } else {
-      // tooltip sits above target
-      tooltipTop = ty - CARD_H - ARROW_H - 4;
-    }
-    // Clamp vertically
+    tooltipTop = current.arrowDir === 'up'
+      ? ty + th + ARROW_H + 4
+      : ty - CARD_H - ARROW_H - 4;
     tooltipTop = Math.max(insets.top + 8, Math.min(h - CARD_H - 40, tooltipTop));
+  } else {
+    tooltipLeft = (w - TOOLTIP_W) / 2;
+    tooltipTop = h / 2 - CARD_H / 2 - 20;
+    arrowOffsetLeft = null;
   }
 
   // ── Step navigation ───────────────────────────────────────────────────────
@@ -189,34 +271,31 @@ export default function OnboardingTour() {
   if (!visible) return null;
 
   return (
-    <Modal
-      transparent
-      animationType="none"
-      visible={visible}
-      statusBarTranslucent
-      presentationStyle="overFullScreen"
-    >
+    <Modal transparent animationType="none" visible={visible} statusBarTranslucent presentationStyle="overFullScreen">
       <Animated.View style={[StyleSheet.absoluteFill, { opacity: overlayFade }]}>
-        {/* Dark overlay with cutout */}
-        <CutoutOverlay target={current.target} screenW={w} screenH={h} />
+        {/* Dark overlay with optional cutout */}
+        <CutoutOverlay target={current.target} />
 
-        {/* Tooltip */}
+        {/* Fake pin — step 4 only */}
+        {current.fakePin && (
+          <Animated.View style={{ opacity: stepFade }}>
+            <FakeMapPin cx={current.fakePin.cx} cy={current.fakePin.cy} />
+          </Animated.View>
+        )}
+
+        {/* Tooltip card */}
         <Animated.View
           style={[
             styles.tooltipWrapper,
             { opacity: stepFade, top: tooltipTop, left: tooltipLeft, width: TOOLTIP_W },
           ]}
         >
-          {/* Arrow UP (above card) */}
           {!current.isFinal && current.arrowDir === 'up' && (
             <View style={[styles.arrowUp, arrowOffsetLeft != null && { marginLeft: arrowOffsetLeft }]} />
           )}
 
-          {/* Card */}
           <View style={styles.card}>
-            {/* Purple accent bar */}
             <View style={styles.accentBar} />
-
             <Text style={styles.title}>{current.title}</Text>
             <Text style={styles.subtitle}>{current.subtitle}</Text>
 
@@ -229,7 +308,6 @@ export default function OnboardingTour() {
                 <View style={styles.footerSpacer} />
               )}
 
-              {/* Step dots */}
               <View style={styles.dotsRow}>
                 {steps.map((_, i) => (
                   <View key={i} style={[styles.dot, i === step && styles.dotActive]} />
@@ -248,7 +326,6 @@ export default function OnboardingTour() {
             </View>
           </View>
 
-          {/* Arrow DOWN (below card) */}
           {!current.isFinal && current.arrowDir === 'down' && (
             <View style={[styles.arrowDown, arrowOffsetLeft != null && { marginLeft: arrowOffsetLeft }]} />
           )}
@@ -344,28 +421,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Outfit_600SemiBold',
   },
-  // Arrow UP ▲ — points toward element above tooltip
   arrowUp: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: ARROW_H,
-    borderRightWidth: ARROW_H,
-    borderBottomWidth: ARROW_H,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    width: 0, height: 0,
+    borderLeftWidth: ARROW_H, borderRightWidth: ARROW_H, borderBottomWidth: ARROW_H,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
     borderBottomColor: ARROW_COLOR,
     alignSelf: 'flex-start',
     marginBottom: -1,
   },
-  // Arrow DOWN ▼ — points toward element below tooltip
   arrowDown: {
-    width: 0,
-    height: 0,
-    borderLeftWidth: ARROW_H,
-    borderRightWidth: ARROW_H,
-    borderTopWidth: ARROW_H,
-    borderLeftColor: 'transparent',
-    borderRightColor: 'transparent',
+    width: 0, height: 0,
+    borderLeftWidth: ARROW_H, borderRightWidth: ARROW_H, borderTopWidth: ARROW_H,
+    borderLeftColor: 'transparent', borderRightColor: 'transparent',
     borderTopColor: ARROW_COLOR,
     alignSelf: 'flex-start',
     marginTop: -1,
