@@ -34,6 +34,31 @@ export const CATEGORY_MAP = {
   "vida nocturna": "Vida Nocturna",
   "familia": "Familia",
   "familiar": "Familiar",
+  // scraped categories — música
+  "80s music": "Música",
+  "baile": "Música",
+  "bass subgenres": "Música",
+  "concert": "Música",
+  "concert tours": "Música",
+  "conciertos y festivales": "Música",
+  "cumbia": "Música",
+  "death metal": "Música",
+  "drum & bass": "Música",
+  "entradas y eventos": "Música",
+  "entretencion": "Música",
+  "festival": "Música",
+  "festival de metal": "Música",
+  "rock": "Música",
+  // scraped categories — comedia
+  "humor / stand up comedy": "Comedia",
+  // scraped categories — arte
+  "atracciones/tours y visitas turisticas": "Arte",
+  "cursos / talleres": "Arte",
+  "encuentros": "Arte",
+  // scraped categories — vida nocturna
+  "fiesta": "Vida Nocturna",
+  // scraped categories — familia
+  "evento familiar": "Familia",
 };
 
 // Subcategorías en ESPAÑOL (hardcoded fallback — backend /config endpoint is the source of truth)

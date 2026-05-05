@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, Animated,
-  Modal, Platform, useWindowDimensions,
+  Modal, useWindowDimensions,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -259,44 +259,47 @@ export default function OnboardingTour() {
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
+const CARD_BG = '#12073A';
+const ARROW_COLOR = '#12073A';
+
 const styles = StyleSheet.create({
   tooltipWrapper: {
     position: 'absolute',
   },
   card: {
-    backgroundColor: '#FFFFFF',
+    backgroundColor: CARD_BG,
     borderRadius: 16,
     paddingHorizontal: 20,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 14,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(155, 93, 229, 0.25)',
+    shadowColor: '#9B5DE5',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 18,
+    elevation: 14,
   },
   accentBar: {
     position: 'absolute',
     top: 0, left: 0, right: 0,
-    height: 4,
-    backgroundColor: '#9B5DE5',
+    height: 3,
+    backgroundColor: '#BFA0FF',
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
   },
   title: {
     fontSize: 16,
-    fontWeight: '700',
-    color: '#1A1034',
+    fontFamily: 'Outfit_700Bold',
+    color: '#FFFFFF',
     marginBottom: 6,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
   },
   subtitle: {
     fontSize: 13.5,
-    color: '#5A5A7A',
+    fontFamily: 'Outfit_400Regular',
+    color: 'rgba(191, 160, 255, 0.80)',
     lineHeight: 20,
     marginBottom: 14,
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif',
   },
   footer: {
     flexDirection: 'row',
@@ -308,8 +311,8 @@ const styles = StyleSheet.create({
   },
   skipText: {
     fontSize: 13,
-    color: '#9A9AB0',
-    fontWeight: '500',
+    fontFamily: 'Outfit_500Medium',
+    color: 'rgba(255,255,255,0.38)',
     minWidth: 44,
   },
   dotsRow: {
@@ -321,10 +324,10 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#D8D8EA',
+    backgroundColor: 'rgba(255,255,255,0.18)',
   },
   dotActive: {
-    backgroundColor: '#9B5DE5',
+    backgroundColor: '#BFA0FF',
     width: 18,
     borderRadius: 3,
   },
@@ -339,8 +342,7 @@ const styles = StyleSheet.create({
   nextText: {
     color: '#FFFFFF',
     fontSize: 13,
-    fontWeight: '700',
-    fontFamily: Platform.OS === 'ios' ? 'System' : 'sans-serif-medium',
+    fontFamily: 'Outfit_600SemiBold',
   },
   // Arrow UP ▲ — points toward element above tooltip
   arrowUp: {
@@ -351,7 +353,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: ARROW_H,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderBottomColor: '#9B5DE5',
+    borderBottomColor: ARROW_COLOR,
     alignSelf: 'flex-start',
     marginBottom: -1,
   },
@@ -364,7 +366,7 @@ const styles = StyleSheet.create({
     borderTopWidth: ARROW_H,
     borderLeftColor: 'transparent',
     borderRightColor: 'transparent',
-    borderTopColor: '#9B5DE5',
+    borderTopColor: ARROW_COLOR,
     alignSelf: 'flex-start',
     marginTop: -1,
   },
