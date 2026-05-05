@@ -459,7 +459,7 @@ const alairelibre = [
     city: "Santiago",
     coordinates: { latitude: -33.48477363312076, longitude: -70.66986014232812 },
     schedule: [
-      { day_of_week: 1, opens_at: "6:00", closes_at: "8:30" },
+      { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "6:00", closes_at: "20:30" },
       { day_of_week: 3, opens_at: "6:00", closes_at: "20:30" },
       { day_of_week: 4, opens_at: "6:00", closes_at: "20:30" },
@@ -573,7 +573,7 @@ const alairelibre = [
       { day_of_week: 7, opens_at: "08:00", closes_at: "23:00" },
     ],
   },
-  ,{
+  {
     name: "Parque Santa Rosa de Apoquindo",
     type: "Parque",
     city: "Santiago",
@@ -651,8 +651,8 @@ const alairelibre = [
   {
     name: "Parque la Hondonada",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Cerro Navia",
+    coordinates: { latitude: -33.4250848, longitude: -70.7600641 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -666,8 +666,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T1",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Quinta Normal",
+    coordinates: { latitude: -33.4286, longitude: -70.6871 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -681,8 +681,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T2",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Quinta Normal",
+    coordinates: { latitude: -33.4292, longitude: -70.7028 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -696,8 +696,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T3",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Cerro Navia",
+    coordinates: { latitude: -33.4307, longitude: -70.7185 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -711,8 +711,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T4",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Cerro Navia",
+    coordinates: { latitude: -33.4319, longitude: -70.7337 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -726,8 +726,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T5",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Cerro Navia",
+    coordinates: { latitude: -33.4330, longitude: -70.7490 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -741,8 +741,8 @@ const alairelibre = [
   {
     name: "Parque Mapocho Río T6",
     type: "Parque",
-    city: "Santiago",
-    coordinates: { latitude: -33.42576712574081, longitude:  -70.75645474232898 },
+    city: "Cerro Navia",
+    coordinates: { latitude: -33.4341, longitude: -70.7638 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },

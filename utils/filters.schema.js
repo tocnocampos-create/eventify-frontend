@@ -57,6 +57,7 @@ export const CATEGORY_MAP = {
   "encuentros": "Arte",
   // scraped categories — vida nocturna
   "fiesta": "Vida Nocturna",
+  "speed dating": "Vida Nocturna",
   // scraped categories — familia
   "evento familiar": "Familia",
 };
