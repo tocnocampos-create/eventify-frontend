@@ -33,6 +33,7 @@ import {
 } from '../utils/mapHelpers';
 
 // UI Components
+import OnboardingTour from '../components/OnboardingTour';
 import MapSearchBar from '../components/home/MapSearchBar';
 import DateSelector from '../components/home/DateSelector';
 import FilterPills from '../components/home/FilterPills';
@@ -600,6 +601,9 @@ export default function HomeScreen() {
         visible={!!selectedOutdoorVenue}
         onClose={() => setSelectedOutdoorVenue(null)}
       />
+
+      {/* ===== ONBOARDING TOUR ===== */}
+      <OnboardingTour />
     </View>
   );
 }
