@@ -667,7 +667,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T1",
     type: "Parque",
     city: "Quinta Normal",
-    coordinates: { latitude: -33.4286, longitude: -70.6871 },
+    coordinates: { latitude: -33.4312, longitude: -70.6840 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -682,7 +682,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T2",
     type: "Parque",
     city: "Quinta Normal",
-    coordinates: { latitude: -33.4292, longitude: -70.7028 },
+    coordinates: { latitude: -33.4325, longitude: -70.6998 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -697,7 +697,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T3",
     type: "Parque",
     city: "Cerro Navia",
-    coordinates: { latitude: -33.4307, longitude: -70.7185 },
+    coordinates: { latitude: -33.4338, longitude: -70.7148 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -712,7 +712,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T4",
     type: "Parque",
     city: "Cerro Navia",
-    coordinates: { latitude: -33.4319, longitude: -70.7337 },
+    coordinates: { latitude: -33.4349, longitude: -70.7295 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -727,7 +727,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T5",
     type: "Parque",
     city: "Cerro Navia",
-    coordinates: { latitude: -33.4330, longitude: -70.7490 },
+    coordinates: { latitude: -33.4361, longitude: -70.7428 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
@@ -742,7 +742,7 @@ const alairelibre = [
     name: "Parque Mapocho Río T6",
     type: "Parque",
     city: "Cerro Navia",
-    coordinates: { latitude: -33.4341, longitude: -70.7638 },
+    coordinates: { latitude: -33.4372, longitude: -70.7530 },
     schedule: [
       { day_of_week: 1, opens_at: "-", closes_at: "-" },
       { day_of_week: 2, opens_at: "09:00", closes_at: "20:00" },
