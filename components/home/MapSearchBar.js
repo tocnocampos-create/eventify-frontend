@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     color: '#fff',
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: 'Outfit_400Regular',
   },
   clearBtn: {

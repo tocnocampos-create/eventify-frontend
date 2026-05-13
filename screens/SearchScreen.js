@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -61,7 +61,9 @@ const SEARCH_CATEGORY_MAP = {
 };
 
 export default function SearchScreen() {
+  const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const debounceRef = useRef(null);
   const [location, setLocation] = useState(null);
   const [city, setCity] = useState('Santiago');
   const [radius, setRadius] = useState(10);
@@ -149,30 +151,73 @@ export default function SearchScreen() {
     })();
   }, []);
 
-  // Free-text search against the full venues/events dataset
+  const handleSearchChange = (text) => {
+    setInputValue(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearchQuery(text), 300);
+  };
+
+  // Normalize: lowercase + strip combining diacriticals (á→a, é→e, ñ→n, etc.)
+  const normalizeStr = (s) =>
+    (s || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
+
+  // Free-text search against the full venues/events dataset.
+  // Multi-strategy: token-order-independent + accent-insensitive + partial word.
+  //
+  // Scoring (per result):
+  //   3 — all tokens match in the primary field (name / title)
+  //   2 — all tokens match across combined fields
+  //   1 — any token matches in the primary field
+  //   0 — no match (excluded)
   const getFilteredResults = useCallback(() => {
-    if (!searchQuery) return { events: [], venues: [] };
-    const q = searchQuery.toLowerCase();
+    if (!searchQuery.trim()) return { events: [], venues: [] };
 
-    const matchedEvents = events.filter(
-      (e) =>
-        (e.title || '').toLowerCase().includes(q) ||
-        (e.location || '').toLowerCase().includes(q)
-    );
+    const tokens = normalizeStr(searchQuery)
+      .split(/\s+/)
+      .filter(Boolean);
 
-    const matchedVenues = venues.filter(
-      (v) =>
-        (v.name || '').toLowerCase().includes(q) ||
-        (v.type || '').toLowerCase().includes(q) ||
-        (v.city || '').toLowerCase().includes(q)
-    );
+    const allIn = (text, toks) => toks.every((t) => text.includes(t));
+    const anyIn = (text, toks) => toks.some((t) => text.includes(t));
+
+    const scoreVenue = (v) => {
+      const name = normalizeStr(v.name);
+      const combined = `${name} ${normalizeStr(v.type)} ${normalizeStr(v.city)}`;
+      if (allIn(name, tokens)) return 3;
+      if (allIn(combined, tokens)) return 2;
+      if (anyIn(name, tokens)) return 1;
+      return 0;
+    };
+
+    const scoreEvent = (e) => {
+      const title = normalizeStr(e.title);
+      const combined = `${title} ${normalizeStr(e.location)}`;
+      if (allIn(title, tokens)) return 3;
+      if (allIn(combined, tokens)) return 2;
+      if (anyIn(title, tokens)) return 1;
+      return 0;
+    };
+
+    const matchedVenues = venues
+      .map((v) => ({ v, score: scoreVenue(v) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ v }) => v);
+
+    const matchedEvents = events
+      .map((e) => ({ e, score: scoreEvent(e) }))
+      .filter(({ score }) => score > 0)
+      .sort((a, b) => b.score - a.score)
+      .map(({ e }) => e);
 
     return { events: matchedEvents, venues: matchedVenues };
   }, [searchQuery, events, venues]);
 
   const filtered = getFilteredResults();
-  const showSearchLoading = searchQuery.length > 0 && searchDataLoading;
-  const showDropdown = searchQuery.length > 0 && !searchDataLoading && (filtered.events.length > 0 || filtered.venues.length > 0);
+  const showSearchLoading = inputValue.length > 0 && searchDataLoading;
+  const showDropdown = inputValue.length > 0 && !searchDataLoading && (filtered.events.length > 0 || filtered.venues.length > 0);
 
   const navigateToEvent = (event) => navigation.navigate('EventDetail', { event });
   const navigateToVenue = (venue) =>
@@ -285,13 +330,13 @@ export default function SearchScreen() {
                   style={styles.searchInput}
                   placeholder="Eventos, venues o artistas"
                   placeholderTextColor={colors.textDim}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
+                  value={inputValue}
+                  onChangeText={handleSearchChange}
                 />
-                {searchQuery.length > 0 && (
+                {inputValue.length > 0 && (
                   <TouchableOpacity
                     style={styles.clearButton}
-                    onPress={() => setSearchQuery('')}
+                    onPress={() => { setInputValue(''); setSearchQuery(''); }}
                   >
                     <X color={colors.primary} size={18} />
                   </TouchableOpacity>
