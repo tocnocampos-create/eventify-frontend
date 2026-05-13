@@ -113,9 +113,11 @@ export default function BottomCarousel({
         <>
           {/* Venue header */}
           <View style={styles.venueHeader}>
-            <Text style={styles.venueHeaderText} numberOfLines={1}>
-              En {selectedVenueMeta?.name}:
-            </Text>
+            <View style={styles.countPill}>
+              <Text style={styles.countText} numberOfLines={1}>
+                En {selectedVenueMeta?.name}
+              </Text>
+            </View>
             <TouchableOpacity onPress={onCloseVenuePanel} style={styles.venueCloseBtn} activeOpacity={0.7}>
               <X size={18} color="#fff" />
             </TouchableOpacity>
@@ -264,13 +266,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     marginBottom: 10,
-  },
-  venueHeaderText: {
-    color: '#fff',
-    fontSize: 14,
-    fontFamily: 'Outfit_600SemiBold',
-    flex: 1,
-    marginRight: 8,
+    gap: 8,
   },
   venueCloseBtn: {
     backgroundColor: colors.glassLight,

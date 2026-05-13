@@ -295,7 +295,8 @@ export default function useHomeFilters(eventsData, searchQuery) {
 
     const byPrice = byText.filter((e) => {
       const price = getEventPrice(e);
-      if (price === null || price === undefined) return true;
+      // NULL price = unknown — only show when no price filter is active
+      if (price === null || price === undefined) return maxPrice >= configMaxPrice;
       return price <= maxPrice;
     });
 
@@ -306,7 +307,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
       if (!dateB.isValid()) return -1;
       return dateA.valueOf() - dateB.valueOf();
     });
-  }, [eventsData, selectedDateTag, selectedCategories, selectedTypes, selectedDay, selectedDays, searchQuery, maxPrice]);
+  }, [eventsData, selectedDateTag, selectedCategories, selectedTypes, selectedDay, selectedDays, searchQuery, maxPrice, configMaxPrice]);
 
   return {
     // State

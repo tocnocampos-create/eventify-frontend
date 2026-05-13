@@ -10,7 +10,7 @@ import alairelibre from '../data/alairelibre';
 import { normalizeLatLng } from '../utils/geo';
 import { useNavigation } from '@react-navigation/native';
 import * as Location from 'expo-location';
-import { useVenues, useEvents, useNeighborhoods } from '../hooks/useMapData';
+import { useVenues, useEvents, useNeighborhoods, useMuseumVenues } from '../hooks/useMapData';
 import { useSearch } from '../hooks/useSearch';
 import dayjs from 'dayjs';
 import isoWeek from 'dayjs/plugin/isoWeek';
@@ -27,6 +27,7 @@ import {
   getEventPinColor, getVenuePinColor,
   PIN_PURPLE, PIN_NAVY, PIN_NAVY_SELECTED,
 } from '../utils/pinColors';
+import { isOpenNow } from '../utils/venueHours';
 import {
   DEFAULT_MAP_REGION, DEFAULT_NATIVE_REGION, CITY_ZOOM_DELTA,
   getCarouselZoomDelta,
@@ -52,10 +53,11 @@ export default function HomeScreen() {
   const navigation = useNavigation();
 
   // API data
-  const { data: venues = [], isLoading: venuesLoading } = useVenues();
-  const { data: eventsData = [], isLoading: eventsLoading } = useEvents(venues);
+  const { data: venues = [], isLoading: venuesLoading, isError: venuesError, refetch: refetchVenues } = useVenues();
+  const { data: eventsData = [], isLoading: eventsLoading, isError: eventsError, refetch: refetchEvents } = useEvents(venues);
   const { data: barrios = [], isLoading: barriosLoading } = useNeighborhoods();
   const isDataLoading = venuesLoading || eventsLoading || barriosLoading;
+  const isDataError = !isDataLoading && (venuesError || eventsError);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +74,13 @@ export default function HomeScreen() {
 
   // Filters hook
   const filterState = useHomeFilters(eventsData, searchQuery);
+
+  // Museum pins: always fetched; displayed based on active filter
+  const isArteActive = filterState.selectedCategories.has('Arte') && !filterState.selectedTypes.has('Arte::Museos');
+  const isMuseosActive = filterState.selectedTypes.has('Arte::Museos');
+  const hasOtherFilters = (filterState.selectedCategories.size > 0 || filterState.selectedTypes.size > 0)
+    && !isArteActive && !isMuseosActive;
+  const { data: museumVenues = [] } = useMuseumVenues(true);
 
   // Map interactions hook
   const mapState = useMapInteractions({
@@ -122,7 +131,9 @@ export default function HomeScreen() {
     if (searchQuery.trim() === '') {
       setDebouncedQuery('');
       setShowSearchResults(false);
-      mapState.setSelectedEventPin(null);
+      // Do NOT clear selectedEventPin here — handleFocusEvent sets it programmatically
+      // after calling setSearchQuery(''), so clearing it here would erase the pin.
+      // Explicit pin clearing is handled by onClear (search bar X button) and handleMapPress.
       return;
     }
     debounceRef.current = setTimeout(() => {
@@ -186,6 +197,22 @@ export default function HomeScreen() {
     setShowFilters(false);
     setShowSearchResults(false);
   }, [mapState.focusVenueOnMap]);
+
+  const handleFocusEvent = useCallback((e) => {
+    // The search response's venueMap may have wrong/missing coordinates for the event.
+    // Look up the venue from the full loaded venues dataset by name and use its authoritative coords.
+    let eventForMap = e;
+    if (e.venueName) {
+      const loadedVenue = venues.find((v) => v.name === e.venueName);
+      if (loadedVenue?.coordinates) {
+        eventForMap = { ...e, coordinates: loadedVenue.coordinates };
+      }
+    }
+    mapState.focusEventOnMap(eventForMap);
+    setSearchQuery('');
+    setShowFilters(false);
+    setShowSearchResults(false);
+  }, [mapState.focusEventOnMap, venues]);
 
   const handleCloseVenuePanel = useCallback(() => {
     mapState.setShowVenuePanel(false);
@@ -272,6 +299,7 @@ export default function HomeScreen() {
         grouped[ev.venueName] = {
           id: ev.venueName,
           venueName: ev.venueName,
+          venueId: venue?.id || null,
           venueType: venue?.type || null,
           latitude: latlng.latitude,
           longitude: latlng.longitude,
@@ -280,7 +308,45 @@ export default function HomeScreen() {
       }
       grouped[ev.venueName].eventCount += 1;
     });
-    const allMarkers = Object.values(grouped).map((vm) => ({
+
+    // Museum pins logic:
+    // - hasOtherFilters: skip all museum pins
+    // - isMuseosActive: show ONLY museum pins (clear event pins, show all museums)
+    // - isArteActive: show event pins + all museum pins
+    // - default (no filter): show event pins + only open museums
+    if (!hasOtherFilters) {
+      museumVenues.forEach((mv) => {
+        if (!mv.coordinates) return;
+
+        // Filter by open status in default mode
+        if (!isArteActive && !isMuseosActive) {
+          const open = isOpenNow(mv.hoursJson);
+          if (!open) return; // hide closed museums on default map
+        }
+
+        if (grouped[mv.name]) return; // already pinned via an event
+        grouped[mv.name] = {
+          id: `museum-${mv.id}`,
+          venueName: mv.name,
+          venueId: mv.id,
+          venueType: mv.type,
+          latitude: mv.coordinates.latitude,
+          longitude: mv.coordinates.longitude,
+          eventCount: mv.upcomingEvents,
+        };
+      });
+    }
+
+    // When Arte::Museos is active, show ONLY museum pins
+    let markers = Object.values(grouped);
+    if (isMuseosActive) {
+      markers = markers.filter((vm) => {
+        const MUSEUM_TYPES = ['Museo', 'Centro Cultural', 'Galería', 'Galeria'];
+        return MUSEUM_TYPES.includes(vm.venueType);
+      });
+    }
+
+    const allMarkers = markers.map((vm) => ({
       ...vm,
       pinColor: getVenuePinColor(vm.venueType),
     }));
@@ -289,7 +355,7 @@ export default function HomeScreen() {
     return hiddenVenueName
       ? allMarkers.filter((vm) => vm.venueName !== hiddenVenueName)
       : allMarkers;
-  }, [filterState.filteredEvents, venues, mapState.selectedEventPin, mapState.selectedVenue]);
+  }, [filterState.filteredEvents, venues, mapState.selectedEventPin, mapState.selectedVenue, isArteActive, isMuseosActive, hasOtherFilters, museumVenues]);
 
   const outdoorMarkers = useMemo(() =>
     alairelibre.map((v) => ({
@@ -326,6 +392,22 @@ export default function HomeScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <Text style={{ color: '#BFA0FF', fontSize: 16, fontFamily: 'Outfit_500Medium' }}>Cargando mapa...</Text>
+      </View>
+    );
+  }
+
+  if (isDataError) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center', padding: 24 }]}>
+        <Text style={{ color: '#BFA0FF', fontSize: 16, fontFamily: 'Outfit_500Medium', textAlign: 'center', marginBottom: 16 }}>
+          No pudimos cargar los eventos. Revisa tu conexión e intenta de nuevo.
+        </Text>
+        <Pressable
+          onPress={() => { refetchVenues(); refetchEvents(); }}
+          style={{ backgroundColor: '#9B5DE5', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }}
+        >
+          <Text style={{ color: '#fff', fontFamily: 'Outfit_600SemiBold', fontSize: 15 }}>Reintentar</Text>
+        </Pressable>
       </View>
     );
   }
@@ -462,13 +544,27 @@ export default function HomeScreen() {
             </NativeMarker>
           ))}
 
-          {mapState.selectedEventPin && (
-            <NativeMarker
-              coordinate={{ latitude: mapState.selectedEventPin.latitude, longitude: mapState.selectedEventPin.longitude }}
-              title={mapState.selectedEventPin.title}
-              pinColor={getEventPinColor({ category: mapState.selectedEventPin.category })} zIndex={998}
-            />
-          )}
+          {mapState.selectedEventPin && (() => {
+            const pinColor = getEventPinColor({ category: mapState.selectedEventPin.category });
+            return (
+              <NativeMarker
+                coordinate={{ latitude: mapState.selectedEventPin.latitude, longitude: mapState.selectedEventPin.longitude }}
+                anchor={{ x: 0.5, y: 1 }}
+                tracksViewChanges={false}
+                zIndex={998}
+              >
+                <View style={styles.venuePinContainer}>
+                  <View style={[styles.venuePinGlow, { backgroundColor: pinColor + '25' }]} />
+                  <View style={[styles.venuePinBody, { backgroundColor: pinColor }]}>
+                    <View style={styles.venuePinShine} />
+                    <View style={styles.venuePinSingleDot} />
+                  </View>
+                  <View style={[styles.venuePinPointer, { borderTopColor: pinColor }]} />
+                  <View style={styles.venuePinShadow} />
+                </View>
+              </NativeMarker>
+            );
+          })()}
 
         </NativeMapView>
       )}
@@ -549,7 +645,7 @@ export default function HomeScreen() {
         <SearchResultsPanel
           searchEvents={searchEvents}
           searchVenues={searchVenues}
-          onFocusEvent={mapState.focusEventOnMap}
+          onFocusEvent={handleFocusEvent}
           onGoToEventDetail={mapState.goToEventDetailClearingPins}
           onFocusVenue={handleFocusVenue}
           onGoToVenue={handleGoToVenue}

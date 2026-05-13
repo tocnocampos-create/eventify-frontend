@@ -17,8 +17,6 @@ import colors from '../theme/colors';
 import GlowingBackground from '../components/auth/GlowingBackground';
 import StyledInput from '../components/auth/StyledInput';
 import GradientButton from '../components/auth/GradientButton';
-import SocialButton from '../components/auth/SocialButton';
-import DividerLine from '../components/auth/DividerLine';
 
 export default function RegisterScreen({ navigation }) {
   const [fullName, setFullName] = useState('');
@@ -73,7 +71,10 @@ export default function RegisterScreen({ navigation }) {
   };
 
   const getErrorMessage = (error) => {
-    if (error?.response?.status === 409) {
+    if (
+      error?.response?.status === 400 ||
+      error?.response?.data?.detail?.toLowerCase?.().includes('already')
+    ) {
       return 'Ya existe una cuenta con este correo';
     }
     if (error?.response?.status === 422) {
@@ -171,19 +172,6 @@ export default function RegisterScreen({ navigation }) {
               onPress={handleRegister}
               loading={isPending}
             />
-
-            <DividerLine text="o regístrate con" />
-
-            <View style={styles.socialContainer}>
-              <SocialButton
-                icon={require('../assets/google-icon.png')}
-                label="Continuar con Google"
-              />
-              <SocialButton
-                icon={require('../assets/apple-icon.png')}
-                label="Continuar con Apple"
-              />
-            </View>
 
             <Text style={styles.loginText}>
               ¿Ya tienes una cuenta?{' '}

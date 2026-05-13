@@ -1,5 +1,5 @@
 // screens/NotificationScreen.js
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,6 +28,9 @@ import { categoryColors } from '../utils/pinColors';
 import { normalizeCategory } from '../utils/filters.schema';
 import { useNotificationFeed, useFollowedVenues } from '../hooks/useUserPreferences';
 import { useAppConfig, getCategoryBadgeColors } from '../hooks/useAppConfig';
+import { useNotificationsUnread } from '../hooks/useNotificationsUnread';
+
+const RECS_PAGE_SIZE = 7;
 
 import dayjs from 'dayjs';
 import 'dayjs/locale/es';
@@ -46,7 +49,18 @@ function toFrontendEvent(apiEvent) {
     price: apiEvent.price_range?.[0] ?? null,
     location: null,
     venue_id: apiEvent.venue_id,
+    matchScore: apiEvent.match_score ?? 0,
   };
+}
+
+/** Sort recommendations: match score DESC first, then date ASC */
+function sortRecommendations(events) {
+  return [...events].sort((a, b) => {
+    if (b.matchScore !== a.matchScore) return b.matchScore - a.matchScore;
+    const da = a.date ? dayjs(a.date).valueOf() : Infinity;
+    const db = b.date ? dayjs(b.date).valueOf() : Infinity;
+    return da - db;
+  });
 }
 
 function formatEventDateTime(event) {
@@ -62,10 +76,21 @@ export default function NotificationScreen({ navigation }) {
   const badgeColors = getCategoryBadgeColors(config?.categories);
   const { data: feed, isLoading } = useNotificationFeed();
   const { data: followedVenues = [], isLoading: followedVenuesLoading } = useFollowedVenues();
+  const { markRead } = useNotificationsUnread();
+  const [showAllRecs, setShowAllRecs] = useState(false);
+
+  // Mark notifications as read whenever this screen is open and data is available
+  useEffect(() => {
+    if (feed) markRead();
+  }, [feed]);
 
   const savedEvents = (feed?.saved_events || []).map(toFrontendEvent);
   const followedVenueEvents = feed?.followed_venue_events || {};
-  const recommendedEvents = (feed?.recommended_events || []).map(toFrontendEvent);
+  const allRecommendedEvents = sortRecommendations(
+    (feed?.recommended_events || []).map(toFrontendEvent)
+  );
+  const hasMoreRecs = allRecommendedEvents.length > RECS_PAGE_SIZE;
+  const recommendedEvents = showAllRecs ? allRecommendedEvents : allRecommendedEvents.slice(0, RECS_PAGE_SIZE);
 
   const renderEventCard = (event) => {
     const category = normalizeCategory(event?.category);
@@ -266,8 +291,21 @@ export default function NotificationScreen({ navigation }) {
             <Text style={styles.sectionTitle}>Recomendaciones</Text>
           </View>
         </View>
-        {recommendedEvents.length > 0 ? (
-          recommendedEvents.map((event) => renderEventCard(event))
+        {allRecommendedEvents.length > 0 ? (
+          <>
+            {recommendedEvents.map((event) => renderEventCard(event))}
+            {hasMoreRecs && !showAllRecs && (
+              <TouchableOpacity
+                style={styles.verMasButton}
+                onPress={() => setShowAllRecs(true)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.verMasText}>
+                  Ver más ({allRecommendedEvents.length - RECS_PAGE_SIZE} más)
+                </Text>
+              </TouchableOpacity>
+            )}
+          </>
         ) : (
           <GlassOverlay borderRadius={12} style={styles.emptyState}>
             <Text style={styles.emptyTitle}>Sin recomendaciones aún</Text>
@@ -447,6 +485,21 @@ const styles = StyleSheet.create({
   },
   smallAccent: {
     height: 2,
+  },
+
+  verMasButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    marginBottom: 16,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    backgroundColor: 'rgba(155, 93, 229, 0.1)',
+  },
+  verMasText: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
   },
 
   // Empty state

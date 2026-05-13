@@ -325,9 +325,8 @@ const WebMap = forwardRef(function WebMap(
         lat: selectedEventPin.latitude,
         lng: selectedEventPin.longitude,
       });
-      // Use category-based color if available, otherwise use selected color (white)
-      const selectedColor = selectedEventPin.pinColor || pinColors.selected || pinColors.default;
-      tempEventMarkerRef.current.setIcon(pinIcon(maps, selectedColor));
+      const selectedColor = selectedEventPin.pinColor || pinColors.default;
+      tempEventMarkerRef.current.setIcon(venuePinIcon(maps, selectedColor, 1));
     } else if (tempEventMarkerRef.current) {
       tempEventMarkerRef.current.setMap(null);
       tempEventMarkerRef.current = null;

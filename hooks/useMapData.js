@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { fetchAllVenues } from '../api/venues';
+import { fetchAllVenues, fetchVenuesByType } from '../api/venues';
 import { fetchAllEvents } from '../api/events';
 import { fetchNeighborhoods } from '../api/neighborhoods';
 import { transformVenue, transformEvent, transformNeighborhood } from '../api/transformers';
@@ -30,6 +30,23 @@ export function useEvents(venues) {
       return assignDateTags(transformed);
     },
     enabled: !!venueMap,
+  });
+}
+
+const MUSEUM_TYPES = ['Museo', 'Centro Cultural', 'Galería', 'Galeria'];
+
+export function useMuseumVenues(isActive) {
+  return useQuery({
+    queryKey: ['museumVenues'],
+    queryFn: async () => {
+      const raw = await fetchVenuesByType(MUSEUM_TYPES);
+      return raw.map((v) => ({
+        ...transformVenue(v),
+        upcomingEvents: v.upcoming_events ?? 0,
+      }));
+    },
+    enabled: !!isActive,
+    staleTime: 5 * 60 * 1000,
   });
 }
 

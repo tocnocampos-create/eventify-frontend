@@ -93,9 +93,9 @@ export default function OnboardingInterestsScreen() {
             showsVerticalScrollIndicator={false}
           >
             <Text style={styles.stepBadge}>Paso 1 de 2</Text>
-            <Text style={styles.title}>¿Cómo vivís{'\n'}la ciudad?</Text>
+            <Text style={styles.title}>¿Cómo vives{'\n'}la ciudad?</Text>
             <Text style={styles.subtitle}>
-              Elegí uno o más perfiles que te representen.
+              Elige uno o más perfiles que te representen.
             </Text>
 
             <View style={styles.modeList}>

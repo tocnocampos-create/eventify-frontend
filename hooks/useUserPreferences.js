@@ -1,4 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+import { useNotificationsUnread } from './useNotificationsUnread';
 import {
   followVenue,
   unfollowVenue,
@@ -114,10 +116,19 @@ export function useSetInterests() {
 // ── Notification feed ─────────────────────────────────────────
 
 export function useNotificationFeed() {
-  return useQuery({
+  const { markUnread } = useNotificationsUnread();
+  const query = useQuery({
     queryKey: ['notificationFeed'],
     queryFn: fetchNotificationFeed,
   });
+
+  useEffect(() => {
+    if (query.data?.recommended_events?.length > 0) {
+      markUnread();
+    }
+  }, [query.data]);
+
+  return query;
 }
 
 // ── Settings ──────────────────────────────────────────────────

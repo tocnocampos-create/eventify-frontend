@@ -278,7 +278,8 @@ export default function DayPickerModal({
     setStart(null);
     setEnd(null);
     setQuickId(null);
-  }, []);
+    animateClose(() => onApply([]));
+  }, [animateClose, onApply]);
 
   const handleApply = useCallback(() => {
     if (!start) {

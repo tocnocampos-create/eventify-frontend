@@ -231,6 +231,10 @@ export default function EventDetailScreen() {
   const communityLinks = detailData?.communityLinks || [];
 
   const isSoldOut = !!(event?.isSoldOut);
+  const isFree = Array.isArray(event?.priceRange)
+    ? event.priceRange[0] === 0 && event.priceRange[1] === 0
+    : event?.price === 0;
+  const hasTicketUrl = !!event?.url;
   const { data: isSaved = false } = useIsEventSaved(routeEvent?.id);
   const toggleSave = useToggleSaveEvent(routeEvent?.id);
 
@@ -291,9 +295,13 @@ export default function EventDetailScreen() {
   const handleBackPress = () => navigation.goBack();
 
   const handleGetTickets = () => {
+    if (isFree && !hasTicketUrl) {
+      Alert.alert('Entrada Libre', 'Este evento es de entrada libre — no requiere ticket.');
+      return;
+    }
     if (event?.url) {
       Linking.openURL(event.url).catch(() =>
-        Alert.alert('Error', 'No se pudo abrir el enlace de tickets.')
+        Alert.alert('Error', 'No se pudo abrir el enlace.')
       );
     } else {
       Alert.alert('Sin enlace', 'Este evento no tiene URL de tickets.');
@@ -319,7 +327,20 @@ export default function EventDetailScreen() {
     }
   };
 
-  const displayDateTime = formatEventDate(event?.date, event?.timeStart || event?.hour);
+  const isExposition = event?.type === 'Exposición';
+  const displayDateTime = (() => {
+    if (isExposition) {
+      const dStart = event?.date ? dayjs(event.date) : null;
+      const dEnd = event?.dateEnd ? dayjs(event.dateEnd) : null;
+      if (dStart?.isValid() && dEnd?.isValid()) {
+        return `${dStart.format('D [de] MMMM')} – ${dEnd.format('D [de] MMMM YYYY')}`;
+      }
+      if (dStart?.isValid()) {
+        return `Desde ${dStart.format('D [de] MMMM')} · En curso`;
+      }
+    }
+    return formatEventDate(event?.date, event?.timeStart || event?.hour);
+  })();
 
   // Cinema group schedule
   const cinemaSchedule = useMemo(
@@ -396,7 +417,7 @@ export default function EventDetailScreen() {
   const openInGoogleMaps = () => {
     if (!normalizedCoord) return;
     const { latitude, longitude } = normalizedCoord;
-    const url = `https://www.google.com/maps?q=${latitude},${longitude}`;
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
     Linking.openURL(url).catch(() => Alert.alert('Error', 'No se pudo abrir Google Maps'));
   };
 
@@ -645,12 +666,25 @@ export default function EventDetailScreen() {
             styles.ticketButton,
             isCinemaGroup && styles.cinemaTicketButton,
             isSoldOut && styles.ticketButtonSoldOut,
+            isFree && !hasTicketUrl && styles.ticketButtonFree,
           ]}
           onPress={handleGetTickets}
-          activeOpacity={0.9}
+          activeOpacity={isFree && !hasTicketUrl ? 1 : 0.9}
         >
-          <Text style={[styles.ticketButtonText, isSoldOut && styles.ticketButtonTextSoldOut]}>
-            {isSoldOut ? 'Agotado' : isCinemaGroup ? 'Comprar tickets' : 'Obtener Tickets'}
+          <Text style={[
+            styles.ticketButtonText,
+            isSoldOut && styles.ticketButtonTextSoldOut,
+            isFree && !hasTicketUrl && styles.ticketButtonTextFree,
+          ]}>
+            {isSoldOut
+              ? 'Agotado'
+              : isCinemaGroup
+                ? 'Comprar tickets'
+                : isFree && !hasTicketUrl
+                  ? 'Entrada Libre'
+                  : isFree && hasTicketUrl
+                    ? 'Más Información'
+                    : 'Obtener Tickets'}
           </Text>
         </TouchableOpacity>
 
@@ -695,7 +729,7 @@ export default function EventDetailScreen() {
             {normalizedCoord && (
               <TouchableOpacity onPress={openInGoogleMaps} style={styles.mapsBtn} activeOpacity={0.85}>
                 <Ionicons name="navigate-outline" size={14} color="#22003D" />
-                <Text style={styles.mapsBtnText}>Abrir en Maps</Text>
+                <Text style={styles.mapsBtnText}>Cómo llegar</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -708,16 +742,16 @@ export default function EventDetailScreen() {
                 style={styles.smallMap}
                 initialRegion={initialRegion}
                 onRegionChange={handleRegionChange}
-                eventMarkers={
+                venueMarkers={
                   normalizedCoord
-                    ? [
-                        {
-                          id: 'e',
-                          latitude: normalizedCoord.latitude,
-                          longitude: normalizedCoord.longitude,
-                          pinColor: getEventPinColor(event),
-                        },
-                      ]
+                    ? [{
+                        id: 'event-detail',
+                        venueName: event?.venueName || event?.title || '',
+                        latitude: normalizedCoord.latitude,
+                        longitude: normalizedCoord.longitude,
+                        pinColor: getEventPinColor(event),
+                        eventCount: 1,
+                      }]
                     : []
                 }
               />
@@ -737,10 +771,20 @@ export default function EventDetailScreen() {
                 {normalizedCoord && (
                   <NativeMarker
                     coordinate={normalizedCoord}
-                    title={event?.title}
-                    description={event?.venueName || event?.location}
-                    pinColor={getEventPinColor(event)}
-                />
+                    anchor={{ x: 0.5, y: 1 }}
+                    tracksViewChanges={false}
+                    zIndex={10}
+                  >
+                    <View style={styles.venuePinContainer}>
+                      <View style={[styles.venuePinGlow, { backgroundColor: getEventPinColor(event) + '25' }]} />
+                      <View style={[styles.venuePinBody, { backgroundColor: getEventPinColor(event) }]}>
+                        <View style={styles.venuePinShine} />
+                        <View style={styles.venuePinSingleDot} />
+                      </View>
+                      <View style={[styles.venuePinPointer, { borderTopColor: getEventPinColor(event) }]} />
+                      <View style={styles.venuePinShadow} />
+                    </View>
+                  </NativeMarker>
                 )}
               </NativeMapView>
             )}
@@ -964,6 +1008,14 @@ const styles = StyleSheet.create({
   },
   ticketButtonText: { color: INK, fontSize: 16, fontWeight: '700' },
   ticketButtonTextSoldOut: { color: '#E53E3E' },
+  ticketButtonFree: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.35)',
+  },
+  ticketButtonTextFree: {
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
   savePlanButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -983,6 +1035,73 @@ const styles = StyleSheet.create({
   savePlanTextActive: { color: ACCENT },
 
   mapWrapper: { marginTop: 8, marginBottom: 20 },
+
+  // ── Venue pin (native) — identical to HomeScreen venuePinXxx styles ──
+  venuePinContainer: {
+    alignItems: 'center',
+    width: 52,
+    height: 58,
+  },
+  venuePinGlow: {
+    position: 'absolute',
+    top: -2,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  venuePinBody: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2.5,
+    borderColor: 'rgba(255,255,255,0.85)',
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.35,
+        shadowRadius: 5,
+      },
+      android: { elevation: 8 },
+    }),
+  },
+  venuePinShine: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: '45%',
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderTopLeftRadius: 19,
+    borderTopRightRadius: 19,
+  },
+  venuePinSingleDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    zIndex: 1,
+  },
+  venuePinPointer: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 7,
+    borderRightWidth: 7,
+    borderTopWidth: 10,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent',
+    marginTop: -3,
+  },
+  venuePinShadow: {
+    width: 14,
+    height: 4,
+    borderRadius: 7,
+    backgroundColor: 'rgba(0,0,0,0.15)',
+    marginTop: 1,
+  },
   mapsBtn: {
     backgroundColor: ACCENT,
     paddingHorizontal: 10,

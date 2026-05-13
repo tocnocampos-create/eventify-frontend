@@ -40,13 +40,22 @@ export const getCarouselZoomDelta = () =>
 export const formatEventDateTime = (e) => {
   const d = e?.date ? dayjs(e.date) : null;
   if (!d || !d.isValid()) return '';
+
+  // Expositions with a date range: "DD MMM – DD MMM YYYY"
+  if (e?.type === 'Exposición' && e?.dateEnd) {
+    const dEnd = dayjs(e.dateEnd);
+    if (dEnd.isValid()) {
+      return `${d.format('DD MMM')} – ${dEnd.format('DD MMM YYYY')}`;
+    }
+  }
+
   const datePart = d.format('DD MMM YYYY');
   const timePart = e?.timeStart ? e.timeStart : null;
   return timePart ? `${datePart} · ${timePart}` : datePart;
 };
 
 export const getEventPrice = (event) => {
-  if (!event?.price) return null;
+  if (event?.price == null) return null;
   if (typeof event.price === 'number') return event.price;
   if (typeof event.price === 'string') {
     const cleaned = event.price.replace(/[.,$]/g, '').trim();

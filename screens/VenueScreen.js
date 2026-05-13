@@ -29,6 +29,7 @@ import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import useDragScroll from '../hooks/useDragScroll';
 import { useIsFollowingVenue, useToggleFollowVenue } from '../hooks/useUserPreferences';
 import { groupCinemaEvents, getCinemaSchedule } from '../utils/cinemaGrouping';
+import { isOpenNow, getStatusText, getStatusColor, getCurrentDayKey, DAY_KEYS, DAY_NAMES } from '../utils/venueHours';
 
 const CINE_BLUE = '#3B52D8';
 const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
@@ -71,7 +72,9 @@ export default function VenueScreen() {
   // State for image lightbox
   const [lightboxVisible, setLightboxVisible] = useState(false);
   const [reviewModalVisible, setReviewModalVisible] = useState(false);
+  const [hoursModalVisible, setHoursModalVisible] = useState(false);
   const [cinemaSheetGroup, setCinemaSheetGroup] = useState(null);
+  const [collectionExpanded, setCollectionExpanded] = useState(false);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const galleryRef = useRef(null);
   const dragRefGallery = useDragScroll(galleryRef);
@@ -106,6 +109,7 @@ export default function VenueScreen() {
   }, [venue?.type, venue?.name]);
 
   const isCinemaVenue = venueType === 'Cine';
+  const isMuseumVenue = ['Museo', 'Centro Cultural', 'Galería'].includes(venueType);
 
   const displayedUpcomingEvents = useMemo(
     () => isCinemaVenue ? groupCinemaEvents(upcomingEvents) : upcomingEvents,
@@ -144,11 +148,22 @@ export default function VenueScreen() {
     );
   }
 
-  const { city: venueCity, menuPdfUrl, websiteUrl } = venue;
+  const {
+    city: venueCity,
+    menuPdfUrl,
+    websiteUrl,
+    openingHours,
+    hoursJson,
+    admissionInfo,
+    ticketUrl,
+    instagramUrl,
+    permanentCollection,
+  } = venue;
 
   // Determine which button to show and what URL to use
   const hasMenu = !!menuPdfUrl;
   const hasWebsite = !!websiteUrl;
+  const isFreeAdmission = admissionInfo?.toLowerCase().includes('gratuito');
   const showMenuButton = hasMenu || hasWebsite;
   const buttonUrl = hasMenu ? menuPdfUrl : websiteUrl;
   const buttonText = hasMenu ? 'Menú' : 'Sitio Web';
@@ -362,28 +377,77 @@ export default function VenueScreen() {
         </View>
       </View>
 
-      {/* Exposiciones (solo para Museos) */}
-      {venueType === 'Museo' && (
+      {/* Museum info: Horarios, Admisión, Colección Permanente */}
+      {isMuseumVenue && (
         <>
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Exposiciones temporales</Text>
-            <View style={styles.emptyExhibitionContainer}>
-              <Ionicons name="image-outline" size={32} color="#9F7BFF" />
-              <Text style={styles.emptyExhibitionText}>
-                No hay exposiciones temporales disponibles en este momento.
-              </Text>
-            </View>
-          </View>
+          {/* A) Horarios */}
+          {(hoursJson || openingHours) && (
+            <TouchableOpacity
+              style={styles.museumInfoSection}
+              onPress={() => hoursJson && setHoursModalVisible(true)}
+              activeOpacity={hoursJson ? 0.7 : 1}
+            >
+              <View style={styles.museumInfoRow}>
+                <Ionicons name="time-outline" size={16} color="#BFA0FF" style={styles.museumInfoIcon} />
+                {hoursJson ? (
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: getStatusColor(hoursJson) }} />
+                      <Text style={[styles.museumInfoText, { flex: 1 }]}>{getStatusText(hoursJson)}</Text>
+                      <Ionicons name="chevron-forward" size={14} color="#BFA0FF" />
+                    </View>
+                  </View>
+                ) : (
+                  <Text style={styles.museumInfoText}>{openingHours}</Text>
+                )}
+              </View>
+            </TouchableOpacity>
+          )}
 
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Exposiciones permanentes</Text>
-            <View style={styles.emptyExhibitionContainer}>
-              <Ionicons name="image-outline" size={32} color="#9F7BFF" />
-              <Text style={styles.emptyExhibitionText}>
-                No hay información de exposiciones permanentes disponible.
-              </Text>
+          {/* B) Admisión */}
+          {admissionInfo && (
+            <View style={styles.museumInfoSection}>
+              <View style={styles.museumInfoRow}>
+                <Ionicons name="ticket-outline" size={16} color="#BFA0FF" style={styles.museumInfoIcon} />
+                <Text style={styles.museumInfoText}>{admissionInfo}</Text>
+              </View>
+              {ticketUrl && !isFreeAdmission && (
+                <TouchableOpacity
+                  style={styles.ticketButton}
+                  onPress={() => WebBrowser.openBrowserAsync(ticketUrl)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.ticketButtonText}>Comprar entrada</Text>
+                </TouchableOpacity>
+              )}
             </View>
-          </View>
+          )}
+
+          {/* C) Colección Permanente */}
+          {permanentCollection && (
+            <View style={styles.section}>
+              <TouchableOpacity
+                style={styles.collectionHeader}
+                onPress={() => setCollectionExpanded(prev => !prev)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.sectionTitle}>Colección Permanente</Text>
+                <Ionicons
+                  name={collectionExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color="#BFA0FF"
+                />
+              </TouchableOpacity>
+              <Text style={styles.collectionText} numberOfLines={collectionExpanded ? undefined : 3}>
+                {permanentCollection}
+              </Text>
+              {!collectionExpanded && permanentCollection.length > 150 && (
+                <TouchableOpacity onPress={() => setCollectionExpanded(true)}>
+                  <Text style={styles.collectionVerMas}>Ver más</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </>
       )}
 
@@ -399,6 +463,32 @@ export default function VenueScreen() {
             keyExtractor={(item) => item.id.toString()}
             scrollEnabled={false}
           />
+        </View>
+      )}
+
+      {/* E) Museum links: Sitio web + Instagram */}
+      {isMuseumVenue && (websiteUrl || instagramUrl) && (
+        <View style={styles.museumLinksSection}>
+          {websiteUrl && (
+            <TouchableOpacity
+              style={styles.museumLinkButton}
+              onPress={() => WebBrowser.openBrowserAsync(websiteUrl)}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="globe-outline" size={16} color="#BFA0FF" />
+              <Text style={styles.museumLinkText}>Sitio web</Text>
+            </TouchableOpacity>
+          )}
+          {instagramUrl && (
+            <TouchableOpacity
+              style={styles.museumLinkButton}
+              onPress={() => WebBrowser.openBrowserAsync(instagramUrl)}
+              activeOpacity={0.8}
+            >
+              <MaterialIcons name="photo-camera" size={16} color="#BFA0FF" />
+              <Text style={styles.museumLinkText}>Instagram</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -454,8 +544,8 @@ export default function VenueScreen() {
         </View>
       )}
 
-      {/* Menú / Sitio Web */}
-      {(hasMenu || hasWebsite) && (
+      {/* Menú / Sitio Web (non-museum venues only — museums use the links section above) */}
+      {!isMuseumVenue && (hasMenu || hasWebsite) && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{hasMenu ? 'Menú' : 'Sitio Web'}</Text>
           {hasMenu ? (
@@ -476,6 +566,41 @@ export default function VenueScreen() {
             <Text style={styles.menuText}>Este venue aún no ha subido su información.</Text>
           )}
         </View>
+      )}
+
+      {/* Hours Modal */}
+      {hoursJson && (
+        <Modal
+          visible={hoursModalVisible}
+          transparent={true}
+          animationType="slide"
+          onRequestClose={() => setHoursModalVisible(false)}
+        >
+          <TouchableOpacity
+            style={styles.hoursModalOverlay}
+            activeOpacity={1}
+            onPress={() => setHoursModalVisible(false)}
+          >
+            <View style={styles.hoursModalSheet}>
+              <View style={styles.hoursModalHandle} />
+              <Text style={styles.hoursModalTitle}>Horarios</Text>
+              {DAY_KEYS.map((key) => {
+                const isToday = key === getCurrentDayKey();
+                const hours = hoursJson[key];
+                return (
+                  <View key={key} style={[styles.hoursRow, isToday && styles.hoursRowToday]}>
+                    <Text style={[styles.hoursDayName, isToday && styles.hoursDayNameToday]}>
+                      {DAY_NAMES[key]}
+                    </Text>
+                    <Text style={[styles.hoursTime, isToday && styles.hoursTimeToday]}>
+                      {hours ? `${hours.open} – ${hours.close}` : 'Cerrado'}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </TouchableOpacity>
+        </Modal>
       )}
 
       {/* Lightbox Modal */}
@@ -927,5 +1052,135 @@ const styles = StyleSheet.create({
     color: '#A0B4FF',
     fontSize: 13,
     fontFamily: 'Outfit_500Medium',
+  },
+
+  // ── Museum info sections ──────────────────────────────────────────────────────
+  museumInfoSection: {
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  museumInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  museumInfoIcon: {
+    marginTop: 2,
+  },
+  museumInfoText: {
+    color: '#D0C4FF',
+    fontSize: 14,
+    lineHeight: 20,
+    flex: 1,
+  },
+  ticketButton: {
+    marginTop: 10,
+    backgroundColor: '#9B5DE5',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    alignSelf: 'flex-start',
+  },
+  ticketButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  collectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  collectionText: {
+    color: '#ccc',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  collectionVerMas: {
+    color: '#BFA0FF',
+    fontSize: 13,
+    marginTop: 6,
+  },
+  museumLinksSection: {
+    paddingHorizontal: 20,
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 24,
+  },
+  museumLinkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#2B245C',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(191, 160, 255, 0.3)',
+  },
+  museumLinkText: {
+    color: '#BFA0FF',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // ── Hours modal ───────────────────────────────────────────────────────────────
+  hoursModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  hoursModalSheet: {
+    backgroundColor: '#1A123D',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingHorizontal: 24,
+    paddingBottom: 40,
+    paddingTop: 12,
+  },
+  hoursModalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignSelf: 'center',
+    marginBottom: 16,
+  },
+  hoursModalTitle: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  hoursRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.06)',
+  },
+  hoursRowToday: {
+    backgroundColor: 'rgba(155, 93, 229, 0.1)',
+    marginHorizontal: -4,
+    paddingHorizontal: 4,
+    borderRadius: 8,
+    borderBottomColor: 'transparent',
+  },
+  hoursDayName: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  hoursDayNameToday: {
+    color: '#BFA0FF',
+    fontWeight: '700',
+  },
+  hoursTime: {
+    color: '#ccc',
+    fontSize: 14,
+  },
+  hoursTimeToday: {
+    color: '#BFA0FF',
+    fontWeight: '700',
   },
 });

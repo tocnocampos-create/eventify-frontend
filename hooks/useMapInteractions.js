@@ -152,9 +152,12 @@ export default function useMapInteractions({
     if (!latlng || !mapRef.current) return;
     setSelectedEventPin({ title: e.title, category: e.category, venueName: e.venueName || null, ...latlng });
     setSelectedVenue(null);
+    setVenueEvents([e]);
+    setSelectedVenueMeta({ name: e.venueName || e.location || e.title });
+    setVenueIndex(0);
     centerMapOnEvent(e, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
     setShowPanel(false);
-    setShowVenuePanel(false);
+    setShowVenuePanel(true);
   }, [centerMapOnEvent]);
 
   const goToEventDetailClearingPins = useCallback((event) => {

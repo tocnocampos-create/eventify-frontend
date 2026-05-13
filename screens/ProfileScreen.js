@@ -131,7 +131,9 @@ export default function ProfileScreen({ navigation }) {
           </View>
           <View style={styles.interestsContainer}>
             {interests.length > 0 ? (
-              interests.map((interest, index) => {
+              interests
+                .filter(i => i != null && i.category && i.category !== 'null')
+                .map((interest, index) => {
                 const catColor = CATEGORY_COLORS[interest.category] || colors.primary;
                 const catIcon = CATEGORY_ICONS[interest.category] || 'ellipse';
                 const label = interest.subtype || interest.category;
@@ -146,7 +148,10 @@ export default function ProfileScreen({ navigation }) {
                       },
                     ]}
                   >
-                    <Ionicons name={catIcon} size={12} color={catColor} />
+                    <Text style={{ fontSize: 12 }}>{
+                      { 'musical-notes': '🎵', 'theater-masks': '🎭', 'happy': '😂',
+                        'color-palette': '🎨', 'film': '🎬', 'people': '👨‍👩‍👧', 'moon': '🌙' }[catIcon] || '🎫'
+                    }</Text>
                     <Text style={[styles.interestText, { color: catColor }]}>
                       {label}
                     </Text>

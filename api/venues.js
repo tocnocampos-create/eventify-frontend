@@ -12,6 +12,12 @@ export async function fetchVenueDetail(venueId) {
   return data;
 }
 
+export async function fetchVenuesByType(venueTypes) {
+  const types = Array.isArray(venueTypes) ? venueTypes.join(',') : venueTypes;
+  const { data } = await apiClient.get('/venues/by-type', { params: { venue_types: types } });
+  return data;
+}
+
 export async function fetchAllVenues() {
   const results = [];
   let skip = 0;

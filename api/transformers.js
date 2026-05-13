@@ -21,6 +21,7 @@ export function transformEvent(apiEvent, venueMap) {
     category: apiEvent.category || null,
     type: apiEvent.type || null,
     date: apiEvent.date || null,
+    dateEnd: apiEvent.date_end || null,
     dateTag: null, // assigned dynamically by assignDateTags
     timeStart: apiEvent.time_start || null,
     timeEnd: apiEvent.time_end || null,
@@ -62,6 +63,12 @@ export function transformVenue(apiVenue) {
     stars: apiVenue.stars ?? null,
     schedule: apiVenue.schedule || null,
     neighborhoodId: apiVenue.neighborhood_id || null,
+    openingHours: apiVenue.opening_hours || null,
+    hoursJson: apiVenue.hours_json || null,
+    permanentCollection: apiVenue.permanent_collection || null,
+    ticketUrl: apiVenue.ticket_url || null,
+    instagramUrl: apiVenue.instagram_url || null,
+    admissionInfo: apiVenue.admission_info || null,
   };
 }
 

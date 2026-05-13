@@ -71,10 +71,12 @@ export default function InterestSelector({
   const buildInterests = useCallback(() => {
     const interests = [];
     for (const [category, subtypes] of Object.entries(selected)) {
+      if (!category || category === 'null') continue;
       if (subtypes.size === 0) {
         interests.push({ category });
       } else {
         for (const subtype of subtypes) {
+          if (!subtype || subtype === 'null') continue;
           interests.push({ category, subtype });
         }
       }
@@ -108,11 +110,10 @@ export default function InterestSelector({
                 onPress={() => toggleCategory(cat)}
                 activeOpacity={0.8}
               >
-                <Ionicons
-                  name={CATEGORY_ICONS[cat]}
-                  size={20}
-                  color={isSelected ? catColor : colors.textDim}
-                />
+                <Text style={{ fontSize: 20 }}>{
+                  { 'musical-notes': '🎵', 'theater-masks': '🎭', 'happy': '😂',
+                    'color-palette': '🎨', 'film': '🎬', 'people': '👨‍👩‍👧', 'moon': '🌙' }[CATEGORY_ICONS[cat]] || '🎫'
+                }</Text>
                 <Text style={[styles.categoryText, isSelected && { color: '#fff' }]}>
                   {cat}
                 </Text>

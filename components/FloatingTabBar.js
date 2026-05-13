@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useNotificationsUnread } from '../hooks/useNotificationsUnread';
 import { View, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 
 // Height of the floating tab bar including internal padding.
@@ -25,7 +26,7 @@ const ICON_MAP = {
 
 const SPRING_CONFIG = { damping: 15, stiffness: 150, mass: 0.8 };
 
-function TabItem({ route, label, isFocused, onPress, onLongPress }) {
+function TabItem({ route, label, isFocused, onPress, onLongPress, badge }) {
   const scale = useSharedValue(isFocused ? 1 : 0);
   const iconTranslateY = useSharedValue(isFocused ? -4 : 0);
 
@@ -67,7 +68,10 @@ function TabItem({ route, label, isFocused, onPress, onLongPress }) {
       activeOpacity={0.7}
     >
       <Animated.View style={animatedIconStyle}>
-        <IconComponent name={iconName} size={22} color={iconColor} />
+        <View style={{ position: 'relative' }}>
+          <IconComponent name={iconName} size={22} color={iconColor} />
+          {badge && <View style={styles.badgeDot} />}
+        </View>
       </Animated.View>
 
       <Animated.Text
@@ -96,6 +100,7 @@ function TabItem({ route, label, isFocused, onPress, onLongPress }) {
 export default function FloatingTabBar({ state, descriptors, navigation }) {
   const insets = useSafeAreaInsets();
   const bottomOffset = Math.max(insets.bottom, 12);
+  const { isUnread } = useNotificationsUnread();
 
   return (
     <View style={[styles.wrapper, { bottom: bottomOffset }]}>
@@ -142,6 +147,7 @@ export default function FloatingTabBar({ state, descriptors, navigation }) {
                   isFocused={isFocused}
                   onPress={onPress}
                   onLongPress={onLongPress}
+                  badge={route.name === 'Notifications' && isUnread}
                 />
               );
             })}
@@ -210,6 +216,17 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Outfit_500Medium',
     letterSpacing: 0.3,
+  },
+  badgeDot: {
+    position: 'absolute',
+    top: -3,
+    right: -5,
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: '#FF3B30',
+    borderWidth: 1.5,
+    borderColor: 'rgba(15, 8, 37, 0.98)',
   },
   activeDot: {
     width: 4,
