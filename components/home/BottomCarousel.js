@@ -37,6 +37,7 @@ export default function BottomCarousel({
   venueEvents,
   selectedVenueMeta,
   onCloseVenuePanel,
+  onClose,
 }) {
   const dragRef = useDragScroll(flatListRef);
   const insets = useSafeAreaInsets();
@@ -104,6 +105,11 @@ export default function BottomCarousel({
                 );
               })}
             </ScrollView>
+          )}
+          {onClose && (
+            <TouchableOpacity onPress={onClose} style={styles.closePillBtn} activeOpacity={0.7}>
+              <X size={15} color="#fff" />
+            </TouchableOpacity>
           )}
         </View>
       )}
@@ -194,10 +200,15 @@ export default function BottomCarousel({
       ) : (
         <View style={styles.emptyPill}>
           <CalendarX2 size={22} color={colors.primaryDark} style={{ marginRight: 10 }} />
-          <View>
+          <View style={{ flex: 1 }}>
             <Text style={styles.emptyTitle}>No hay eventos para esta fecha</Text>
             <Text style={styles.emptySub}>Prueba cambiando la fecha o los filtros</Text>
           </View>
+          {onClose && (
+            <TouchableOpacity onPress={onClose} style={styles.closeEmptyBtn} activeOpacity={0.7}>
+              <X size={15} color="#fff" />
+            </TouchableOpacity>
+          )}
         </View>
       )}
     </Animated.View>
@@ -257,6 +268,23 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontFamily: 'Outfit_600SemiBold',
+  },
+
+  // ─── Pill row close button ───
+  closePillBtn: {
+    marginLeft: 8,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    padding: 5,
+  },
+
+  // ─── Empty pill close button ───
+  closeEmptyBtn: {
+    marginLeft: 12,
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderRadius: 8,
+    padding: 5,
+    alignSelf: 'center',
   },
 
   // ─── Venue header ───

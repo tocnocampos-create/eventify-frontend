@@ -655,23 +655,26 @@ export default function HomeScreen() {
       )}
 
       {/* ===== BOTTOM CAROUSEL ===== */}
-      <BottomCarousel
-        filteredEvents={filterState.filteredEvents}
-        selectedIndex={mapState.selectedIndex}
-        activeFilters={filterState.activeFilters}
-        flatListRef={mapState.flatListRef}
-        pan={mapState.pan}
-        panResponder={mapState.panResponder}
-        onCardPress={handleCardPress}
-        onScrollBeginDrag={handleScrollBeginDrag}
-        onScrollEndDrag={handleScrollEndDrag}
-        onScroll={handleCarouselScroll}
-        onMomentumScrollEnd={handleMomentumScrollEnd}
-        showVenuePanel={mapState.showVenuePanel}
-        venueEvents={mapState.venueEvents}
-        selectedVenueMeta={mapState.selectedVenueMeta}
-        onCloseVenuePanel={handleCloseVenuePanel}
-      />
+      {mapState.showPanel && (
+        <BottomCarousel
+          filteredEvents={filterState.filteredEvents}
+          selectedIndex={mapState.selectedIndex}
+          activeFilters={filterState.activeFilters}
+          flatListRef={mapState.flatListRef}
+          pan={mapState.pan}
+          panResponder={mapState.panResponder}
+          onCardPress={handleCardPress}
+          onScrollBeginDrag={handleScrollBeginDrag}
+          onScrollEndDrag={handleScrollEndDrag}
+          onScroll={handleCarouselScroll}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+          showVenuePanel={mapState.showVenuePanel}
+          venueEvents={mapState.venueEvents}
+          selectedVenueMeta={mapState.selectedVenueMeta}
+          onCloseVenuePanel={handleCloseVenuePanel}
+          onClose={() => mapState.setShowPanel(false)}
+        />
+      )}
 
 
       {/* ===== DAY PICKER MODAL ===== */}
