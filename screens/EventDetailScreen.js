@@ -212,10 +212,17 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { event: routeEvent } = route.params;
   const isCinemaGroup = !!routeEvent?._isCinemaGroup;
-  // For cinema groups fetch the first showtime's detail to get community links (trailer).
-  // For regular events fetch the event's own detail as before.
+  // For cinema groups fetch the first UPCOMING showtime's detail to get community links
+  // (trailer). Past-date showtime events may lack community_links even when future ones
+  // have them, because upsert_event_links only runs for events in the current scrape batch.
+  // Fall back to showtimes[0] if all showtimes are past (edge case).
   const detailFetchId = isCinemaGroup
-    ? (routeEvent?.showtimes?.[0]?.id ?? null)
+    ? (() => {
+        const todayStr = dayjs().format('YYYY-MM-DD');
+        const showtimes = routeEvent?.showtimes || [];
+        const upcoming = showtimes.find(st => (st.date || '') >= todayStr);
+        return (upcoming ?? showtimes[0])?.id ?? null;
+      })()
     : (routeEvent?.id ?? null);
   const { data: detailData, isLoading: isDetailLoading } = useEventDetail(detailFetchId);
 
