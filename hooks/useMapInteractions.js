@@ -28,6 +28,7 @@ export default function useMapInteractions({
   const streetZoomNextRef = useRef(false);
   const centerTimeoutRef = useRef(null);
   const lastCenteredEventId = useRef(null);
+  const isUserSwipedRef = useRef(false);
   const pan = useRef(new Animated.Value(0)).current;
   const prevSelectedDays = useRef(JSON.stringify(selectedDays));
   const prevSelectedDay = useRef(selectedDay);
@@ -212,6 +213,10 @@ export default function useMapInteractions({
 
   // Sync filtered events -> selectedIndex
   useEffect(() => {
+    // Filter/date changes are never user-swipe initiated — clear the flag so that
+    // any index set below (or by momentum at the same index) never triggers a zoom.
+    isUserSwipedRef.current = false;
+
     const selectedDaysChanged = prevSelectedDays.current !== JSON.stringify(selectedDays);
     const dayChanged = prevSelectedDay.current !== selectedDay;
     prevSelectedDays.current = JSON.stringify(selectedDays);
@@ -270,7 +275,9 @@ export default function useMapInteractions({
     }
   }, [filteredEvents, selectedDays, selectedDay]);
 
-  // Center map on selected event (skip when venue panel is open)
+  // Center map on selected event — only when the user actively swiped the carousel.
+  // isUserSwipedRef is set by the scroll-end handlers in HomeScreen and consumed here,
+  // so programmatic index changes (initial load, filter changes) do NOT trigger a zoom.
   useEffect(() => {
     if (centerTimeoutRef.current) {
       clearTimeout(centerTimeoutRef.current);
@@ -278,21 +285,14 @@ export default function useMapInteractions({
     }
     if (showVenuePanel) return;
     if (selectedIndex == null || selectedIndex < 0 || selectedIndex >= filteredEvents.length) return;
+    if (!isUserSwipedRef.current) return;
+    isUserSwipedRef.current = false;
+
     const eventToCenter = filteredEvents[selectedIndex];
     if (!eventToCenter) return;
 
     centerTimeoutRef.current = setTimeout(() => {
-      if (Platform.OS === 'web') {
-        centerMapOnEvent(eventToCenter, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
-      } else {
-        const shouldStreetZoom = streetZoomNextRef.current;
-        streetZoomNextRef.current = false;
-        if (shouldStreetZoom) {
-          centerMapOnEvent(eventToCenter, { force: true, streetZoom: true });
-        } else {
-          centerMapOnEvent(eventToCenter, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
-        }
-      }
+      centerMapOnEvent(eventToCenter, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
     }, 60);
 
     return () => {
@@ -309,7 +309,7 @@ export default function useMapInteractions({
     selectedVenue, setSelectedVenue,
     selectedEventPin, setSelectedEventPin,
     isCarouselScrolling, setIsCarouselScrolling,
-    mapRef, flatListRef, mapRegionRef, streetZoomNextRef,
+    mapRef, flatListRef, mapRegionRef, streetZoomNextRef, isUserSwipedRef,
     pan, panResponder,
     clearPins,
     getVenueLatLng, getEventLatLng,

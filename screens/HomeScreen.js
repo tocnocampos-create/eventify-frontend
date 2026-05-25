@@ -264,7 +264,10 @@ export default function HomeScreen() {
   const handleScrollEndDrag = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
     const index = Math.round(e.nativeEvent.contentOffset.x / 270);
-    if (index >= 0 && index < filterState.filteredEvents.length) mapState.setSelectedIndex(index);
+    if (index >= 0 && index < filterState.filteredEvents.length) {
+      mapState.isUserSwipedRef.current = true;
+      mapState.setSelectedIndex(index);
+    }
     if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
       mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
@@ -281,7 +284,10 @@ export default function HomeScreen() {
   const handleMomentumScrollEnd = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
     const index = Math.round(e.nativeEvent.contentOffset.x / 270);
-    if (index >= 0 && index < filterState.filteredEvents.length) mapState.setSelectedIndex(index);
+    if (index >= 0 && index < filterState.filteredEvents.length) {
+      mapState.isUserSwipedRef.current = true;
+      mapState.setSelectedIndex(index);
+    }
     if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
       mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
