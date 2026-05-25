@@ -681,6 +681,8 @@ export default function HomeScreen() {
           onGoToEventDetail={mapState.goToEventDetailClearingPins}
           onFocusVenue={handleFocusVenue}
           onGoToVenue={handleGoToVenue}
+          query={debouncedQuery}
+          onViewAll={() => setShowSearchResults(false)}
           style={{ position: 'absolute', top: resultsTop, left: 15, right: 15, zIndex: 13 }}
         />
         </>
