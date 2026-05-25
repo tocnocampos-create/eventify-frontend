@@ -143,24 +143,27 @@ export default function useHomeFilters(eventsData, searchQuery) {
     }
 
     if (isCategory) {
+      const adding = !selectedCategories.has(filter);
       setSelectedCategories((prev) => {
         const next = new Set(prev);
         if (next.has(filter)) next.delete(filter);
         else next.add(filter);
         return next;
       });
-      return { clearPins: true };
+      return { clearPins: true, added: adding, filterName: filter };
     }
 
     if (isType) {
       const typeKey = typeof filter === 'object' ? `${filter.category}::${filter.type}` : filter;
+      const adding = !selectedTypes.has(typeKey);
+      const filterName = typeof filter === 'object' ? `${filter.category} · ${filter.type}` : filter;
       setSelectedTypes((prev) => {
         const next = new Set(prev);
         if (next.has(typeKey)) next.delete(typeKey);
         else next.add(typeKey);
         return next;
       });
-      return { clearPins: true };
+      return { clearPins: true, added: adding, filterName };
     }
     return {};
   }, [selectedDateTag, currentDate, filters, ALL_TYPES]);
@@ -178,7 +181,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
     } else if (filters.Category.includes(filter)) {
       setSelectedCategories((prev) => { const next = new Set(prev); next.delete(filter); return next; });
     }
-    return { clearPins: true };
+    return { clearPins: true, removed: true };
   }, [currentDate]);
 
   // Day picker handlers

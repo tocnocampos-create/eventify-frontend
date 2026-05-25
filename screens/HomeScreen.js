@@ -72,6 +72,23 @@ export default function HomeScreen() {
   const [location, setLocation] = useState(null);
   const pulse = useRef(new Animated.Value(0)).current;
 
+  // Filter toast
+  const toastOpacity = useRef(new Animated.Value(0)).current;
+  const toastAnimRef = useRef(null);
+  const [toastConfig, setToastConfig] = useState({ message: '', color: 'rgba(83,74,183,0.92)' });
+
+  const showFilterToast = useCallback((message, color = 'rgba(83,74,183,0.92)') => {
+    setToastConfig({ message, color });
+    if (toastAnimRef.current) toastAnimRef.current.stop();
+    toastOpacity.setValue(0);
+    toastAnimRef.current = Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(1500),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]);
+    toastAnimRef.current.start(() => { toastAnimRef.current = null; });
+  }, [toastOpacity]);
+
   // Filters hook
   const filterState = useHomeFilters(eventsData, searchQuery);
 
@@ -180,16 +197,25 @@ export default function HomeScreen() {
   const handleToggleFilter = useCallback((filter) => {
     const result = filterState.toggleFilter(filter);
     if (result?.clearPins) { mapState.clearPins(); mapState.setShowVenuePanel(false); }
-  }, [filterState.toggleFilter]);
+    if (result?.filterName) {
+      if (result.added) {
+        showFilterToast(`✓ ${result.filterName} aplicado`);
+      } else {
+        showFilterToast('✓ Filtros eliminados', 'rgba(70,70,80,0.92)');
+      }
+    }
+  }, [filterState.toggleFilter, showFilterToast]);
 
   const handleRemoveFilter = useCallback((filterItem) => {
     if (filterItem.type === 'price') {
       filterState.setMaxPrice(300000);
+      showFilterToast('✓ Filtros eliminados', 'rgba(70,70,80,0.92)');
     } else {
       const result = filterState.removeFilter(filterItem.value);
       if (result?.clearPins) { mapState.clearPins(); mapState.setShowVenuePanel(false); }
+      if (result?.removed) showFilterToast('✓ Filtros eliminados', 'rgba(70,70,80,0.92)');
     }
-  }, [filterState.removeFilter]);
+  }, [filterState.removeFilter, filterState.setMaxPrice, showFilterToast]);
 
   const handleFocusVenue = useCallback((v) => {
     mapState.focusVenueOnMap(v);
@@ -709,6 +735,17 @@ export default function HomeScreen() {
 
       {/* ===== ONBOARDING TOUR ===== */}
       <OnboardingTour />
+
+      {/* ===== FILTER TOAST ===== */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          styles.filterToast,
+          { top: insets.top + 70, opacity: toastOpacity, backgroundColor: toastConfig.color },
+        ]}
+      >
+        <Text style={styles.filterToastText}>{toastConfig.message}</Text>
+      </Animated.View>
     </View>
   );
 }
@@ -873,5 +910,24 @@ const styles = StyleSheet.create({
     borderRightColor: 'transparent',
     borderTopColor: '#2D7D46',
     marginTop: -2,
+  },
+  filterToast: {
+    position: 'absolute',
+    alignSelf: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    zIndex: 99,
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 3 }, shadowOpacity: 0.25, shadowRadius: 6 },
+      android: { elevation: 8 },
+      web: { boxShadow: '0 3px 12px rgba(0,0,0,0.3)' },
+    }),
+  },
+  filterToastText: {
+    color: '#fff',
+    fontSize: 13,
+    fontFamily: 'Outfit_500Medium',
+    letterSpacing: 0.1,
   },
 });
