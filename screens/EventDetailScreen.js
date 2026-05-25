@@ -212,16 +212,18 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { event: routeEvent } = route.params;
   const isCinemaGroup = !!routeEvent?._isCinemaGroup;
-  // For cinema groups fetch the first UPCOMING showtime's detail to get community links
-  // (trailer). Past-date showtime events may lack community_links even when future ones
-  // have them, because upsert_event_links only runs for events in the current scrape batch.
-  // Fall back to showtimes[0] if all showtimes are past (edge case).
+  // For cinema groups fetch the detail of the oldest upcoming showtime (lowest id)
+  // to get community links (trailer). The TMDB enricher runs after each scrape batch
+  // and may not yet have processed the most recent batch — older event records (lower
+  // ids) are more reliably enriched. Sorting by id ascending before picking the first
+  // upcoming showtime maximises the chance of landing on an enriched record.
   const detailFetchId = isCinemaGroup
     ? (() => {
         const todayStr = dayjs().format('YYYY-MM-DD');
         const showtimes = routeEvent?.showtimes || [];
-        const upcoming = showtimes.find(st => (st.date || '') >= todayStr);
-        return (upcoming ?? showtimes[0])?.id ?? null;
+        const byIdAsc = [...showtimes].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+        const upcoming = byIdAsc.find(st => (st.date || '') >= todayStr);
+        return (upcoming ?? byIdAsc[0])?.id ?? null;
       })()
     : (routeEvent?.id ?? null);
   const { data: detailData, isLoading: isDetailLoading } = useEventDetail(detailFetchId);
