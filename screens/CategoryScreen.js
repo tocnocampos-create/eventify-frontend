@@ -107,61 +107,99 @@ const CATEGORY_COPY = {
   },
 };
 
-// ── Event filter spec (mirrors PILL_CATEGORY_FILTER_MAP in EventsScreen) ─────
+// ── Event filter spec ─────────────────────────────────────────────────────────
+// excludeCategories: ['Cine'] is on every non-cinema category to prevent the
+// 3,173 Cine events (77% of DB) from contaminating keyword-based categories.
+// categories:  matched against event.category (exact, case-insensitive)
+// keywords:    matched against event.title + event.description + event.keywords[]
 const EVENT_FILTER_SPEC = {
-  'Jazz':          { keywords: ['jazz', 'blues', 'swing'], types: ['Jazz'] },
-  'Comedia':       { keywords: ['comedia', 'stand up', 'humor'], categories: ['Comedia'] },
-  'Teatro':        { keywords: ['teatro', 'obra', 'drama', 'tragicomedia', 'monólogo'],
-                     categories: ['Teatro'] },
-  'Vida Nocturna': { keywords: ['vida nocturna', 'dj', 'club', 'boliche', 'after', 'nocturno'] },
-  'Nacional':      { keywords: ['folclore', 'folklore', 'cueca', 'música nacional',
-                                 'banda chilena', 'artista chileno', 'cumbia chilena', 'latin folk'] },
-  'Barrios':       { keywords: ['barrio italia', 'lastarria', 'bellavista', 'brasil',
-                                 'yungay', 'patrimonio', 'ruta cultural'] },
-  'Al aire libre': { keywords: ['aire libre', 'outdoor', 'parque', 'festival', 'anfiteatro'] },
-  'Festivales':    { keywords: ['festival', 'aire libre', 'outdoor', 'anfiteatro'] },
-  'City Tour':     { keywords: ['city tour', 'tour', 'turismo', 'visita guiada',
-                                 'centro histórico', 'ruta patrimonial', 'la moneda'] },
-  'Museos':        { keywords: ['museo', 'colección'] },
-  'Galerías':      { keywords: ['galería', 'arte', 'exposición'] },
-  'Cine':          { keywords: ['cine', 'película', 'film', 'proyección'], categories: ['Cine'] },
-  'Sunsets':       { keywords: ['sunset', 'atardecer', 'happy hour', 'rooftop', 'terraza'] },
-  'Ferias':        { keywords: ['feria', 'mercado', 'bazar', 'food market'] },
-  'Familiar':      { keywords: ['familiar', 'infantil', 'niños', 'kids', 'todas las edades'] },
+  // ── Exact category match (clean) ──────────────────────────────────────────
+  'Comedia':       { categories: ['Comedia'], excludeCategories: ['Cine'] },
+  'Teatro':        { categories: ['Teatro'],  excludeCategories: ['Cine'] },
+  'Cine':          { categories: ['Cine'] },
+  'Familiar':      { categories: ['Familia'], excludeCategories: ['Cine'] },
+  'Festivales':    { categories: ['Festivales', 'Música'],
+                     keywords: ['festival', 'lollapalooza', 'fauna', 'creamfields',
+                                'ultra', 'espacio riesco', 'big stage'],
+                     excludeCategories: ['Cine'] },
+  'Nacional':      { categories: ['Nacional'],
+                     keywords: ['folclore', 'cueca', 'cumbia chilena', 'nueva canción',
+                                'música chilena', 'artista chileno'],
+                     excludeCategories: ['Cine'] },
+
+  // ── Keyword based (Cine always excluded) ──────────────────────────────────
+  'Jazz':          { keywords: ['jazz', 'blues', 'swing', 'bossa nova', 'soul', 'funk', 'big band'],
+                     excludeCategories: ['Cine'] },
+  'Vida Nocturna': { categories: ['Vida Nocturna'],
+                     keywords: ['dj set', 'club', 'after', 'electrónica', 'techno',
+                                'house', 'reggaeton', 'perreo', 'urbano'],
+                     excludeCategories: ['Cine'] },
+  'Ferias':        { categories: ['Ferias'],
+                     keywords: ['feria', 'mercado', 'bazar', 'expocafé', 'beerfest',
+                                'comicon', 'gastronóm', 'feria del libro', 'fintech'],
+                     excludeCategories: ['Cine'] },
+  'Museos':        { keywords: ['museo', 'exposición', 'colección', 'arte', 'galería', 'muestra'],
+                     excludeCategories: ['Cine'] },
+  'Sunsets':       { keywords: ['sunset', 'atardecer', 'after office', 'rooftop', 'dj set',
+                                'terraza', 'copa'],
+                     excludeCategories: ['Cine'] },
+  'Galerías':      { keywords: ['galería', 'arte', 'exposición', 'muestra', 'colectiva'],
+                     excludeCategories: ['Cine'] },
+  'Al aire libre': { keywords: ['parque', 'cerro', 'aire libre', 'ciclovía', 'outdoor'],
+                     excludeCategories: ['Cine'] },
+  'City Tour':     { keywords: ['tour', 'visita guiada', 'turismo', 'recorrido'],
+                     excludeCategories: ['Cine'] },
+  'Barrios':       { useBarriosMap: true },
 };
 
-// ── Venue type filter spec ────────────────────────────────────────────────────
+// ── Venue type filter spec (aligned with actual DB venue_type values) ─────────
 const VENUE_TYPE_SPEC = {
-  'Jazz':          ['Bar', 'Sala de Concierto', 'Club', 'Pub'],
-  'Teatro':        ['Teatro', 'Centro Cultural', 'Sala de Espectáculos'],
-  'Comedia':       ['Teatro', 'Bar', 'Centro Cultural'],
-  'Vida Nocturna': ['Club', 'Bar', 'Discoteca', 'Pub', 'Boliche'],
-  'Nacional':      ['Bar', 'Sala de Concierto', 'Club'],
-  'Barrios':       ['Bar', 'Centro Cultural', 'Teatro'],
-  'Al aire libre': ['Parque', 'Cerro', 'Bosque', 'Santuario', 'Monumento Natural', 'Parque Nacional', 'Salto'],
-  'Festivales':    ['Arena'],
-  'City Tour':     ['Museo', 'Centro Cultural'],
-  'Museos':        ['Museo'],
-  'Galerías':      ['Galería', 'Centro Cultural'],
+  'Jazz':          ['Sala de Concierto', 'Bar', 'Club', 'Teatro', 'Espacio Cultural'],
+  'Comedia':       ['Teatro', 'Bar', 'Centro Cultural', 'Comedia', 'Espacio Cultural'],
+  'Teatro':        ['Teatro'],
   'Cine':          ['Cine'],
-  'Sunsets':       ['Bar', 'Club'],
-  'Ferias':        ['Arena', 'Centro Cultural'],
-  'Familiar':      ['Teatro', 'Museo', 'Arena'],
+  'Nacional':      ['Arena', 'Teatro', 'Sala de Concierto', 'Espacio Cultural', 'Bar'],
+  'Vida Nocturna': ['Club', 'Bar'],
+  'Museos':        ['Museo', 'Centro Cultural'],
+  'Galerías':      ['Museo', 'Centro Cultural', 'Espacio Cultural'],
+  'Ferias':        ['Espacio Cultural', 'Parque', 'Arena'],
+  'Festivales':    ['Arena', 'Parque', 'Espacio Cultural'],
+  'Familiar':      ['Teatro', 'Museo', 'Centro Cultural', 'Parque', 'Cine'],
+  'Sunsets':       ['Bar', 'Club', 'Espacio Cultural'],
+  'Al aire libre': ['Parque', 'Cerro', 'Bosque', 'Salto', 'Santuario', 'Monumento Natural', 'Parque Nacional'],
+  'City Tour':     ['Museo', 'Centro Cultural'],
+  'Barrios':       [],
 };
 
 // ── Filter helpers ────────────────────────────────────────────────────────────
 function buildEventFilter(categoryKey) {
   const spec = EVENT_FILTER_SPEC[categoryKey];
   if (!spec) return () => false;
+  // Barrios uses a special map UI — no event list
+  if (spec.useBarriosMap) return () => false;
+
   return (event) => {
+    // Hard-exclude contaminating categories (primarily Cine)
+    if (spec.excludeCategories?.includes(event.category)) return false;
+
+    // Match by event.category field
     if (spec.categories?.length) {
-      const catLower = (event.category || '').toLowerCase();
-      return spec.categories.some(c => c.toLowerCase() === catLower);
+      if (spec.categories.some(c => (event.category || '').toLowerCase() === c.toLowerCase())) {
+        return true;
+      }
     }
-    const kwsLower = (event.keywords || []).map(k => k.toLowerCase());
-    if (spec.keywords?.some(kw => kwsLower.includes(kw.toLowerCase()))) return true;
-    const typeLower = (event.type || '').toLowerCase();
-    if (spec.types?.some(t => t.toLowerCase() === typeLower)) return true;
+
+    // Match by keywords in title, description, or event.keywords array
+    if (spec.keywords?.length) {
+      const text = `${event.title || ''} ${event.description || ''}`.toLowerCase();
+      const kws = (event.keywords || []).map(k => k.toLowerCase());
+      const match = spec.keywords.some(kw => {
+        const kwl = kw.toLowerCase();
+        return text.includes(kwl) || kws.includes(kwl);
+      });
+      if (match) return true;
+    }
+
     return false;
   };
 }
@@ -245,10 +283,17 @@ export default function CategoryScreen() {
   const { data: venues = [] } = useVenues();
   const { data: events = [] } = useEvents(venues);
 
-  const filteredEvents = useMemo(
-    () => events.filter(buildEventFilter(categoryKey)),
-    [events, categoryKey],
-  );
+  const filteredEvents = useMemo(() => {
+    let base = events.filter(buildEventFilter(categoryKey));
+    // Sunsets: only show evening events (17:00–22:00)
+    if (categoryKey === 'Sunsets') {
+      base = base.filter(e => {
+        if (!e.timeStart) return true;
+        return e.timeStart >= '17:00' && e.timeStart <= '22:00';
+      });
+    }
+    return base;
+  }, [events, categoryKey]);
 
   const filteredVenues = useMemo(
     () => venues.filter(buildVenueFilter(categoryKey)),
