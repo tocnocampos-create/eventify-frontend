@@ -14,6 +14,7 @@ injectWebScrollbar();
 import FloatingTabBar from './components/FloatingTabBar';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import ErrorBoundary from './components/ErrorBoundary';
+import { Analytics } from '@vercel/analytics/react';
 
 import LoginScreen from './screens/LoginScreen';
 import RegisterScreen from './screens/RegisterScreen';
@@ -165,6 +166,7 @@ export default function App() {
           </AuthProvider>
         </QueryClientProvider>
       </SafeAreaProvider>
+      <Analytics />
     </ErrorBoundary>
   );
 }
