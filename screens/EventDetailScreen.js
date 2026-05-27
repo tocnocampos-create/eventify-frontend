@@ -217,15 +217,16 @@ export default function EventDetailScreen() {
   // and may not yet have processed the most recent batch — older event records (lower
   // ids) are more reliably enriched. Sorting by id ascending before picking the first
   // upcoming showtime maximises the chance of landing on an enriched record.
-  const detailFetchId = isCinemaGroup
-    ? (() => {
-        const todayStr = dayjs().format('YYYY-MM-DD');
-        const showtimes = routeEvent?.showtimes || [];
-        const byIdAsc = [...showtimes].sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
-        const upcoming = byIdAsc.find(st => (st.date || '') >= todayStr);
-        return (upcoming ?? byIdAsc[0])?.id ?? null;
-      })()
-    : (routeEvent?.id ?? null);
+  const detailFetchId = useMemo(() => {
+    if (!isCinemaGroup) return routeEvent?.id ?? null;
+    const showtimes = routeEvent?.showtimes || [];
+    if (!showtimes.length) return routeEvent?.id ?? null;
+    const today = dayjs().format('YYYY-MM-DD');
+    const future = [...showtimes]
+      .filter(st => (st.date || '') >= today)
+      .sort((a, b) => (a.id ?? 0) - (b.id ?? 0));
+    return future[0]?.id ?? showtimes[0]?.id ?? null;
+  }, [isCinemaGroup, routeEvent?.id, routeEvent?.showtimes]);
   const { data: detailData, isLoading: isDetailLoading } = useEventDetail(detailFetchId);
 
   // For cinema groups: never merge detailData.event — it would overwrite the
