@@ -17,7 +17,7 @@ import TabScreenLayout from '../components/TabScreenLayout';
 import DiscoverVenueCard from '../components/discover/DiscoverVenueCard';
 import { useVenues, useEvents } from '../hooks/useMapData';
 import { useAppConfig, getCategoryBadgeColors } from '../hooks/useAppConfig';
-import { formatEventDateTime, formatPrice } from '../utils/mapHelpers';
+import { formatEventDateTime, getEventPriceLabel } from '../utils/mapHelpers';
 import { normalizeCategory } from '../utils/filters.schema';
 import { categoryColors } from '../utils/pinColors';
 import colors from '../theme/colors';
@@ -272,10 +272,8 @@ function EventCard({ item, badgeColors, onPress }) {
             <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
           </View>
         )}
-        {item?.price != null && (
-          <Text style={styles.cardPrice}>
-            {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
-          </Text>
+        {getEventPriceLabel(item) !== null && (
+          <Text style={styles.cardPrice}>{getEventPriceLabel(item)}</Text>
         )}
       </View>
       <LinearGradient

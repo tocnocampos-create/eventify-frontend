@@ -6,7 +6,7 @@ import Animated, {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Calendar, MapPin, Clock } from 'lucide-react-native';
 import colors from '../../theme/colors';
-import { formatEventDateTime, formatPrice } from '../../utils/mapHelpers';
+import { formatEventDateTime, getEventPriceLabel } from '../../utils/mapHelpers';
 import { normalizeCategory } from '../../utils/filters.schema';
 import { categoryColors } from '../../utils/pinColors';
 import { getCinemaSchedule } from '../../utils/cinemaGrouping';
@@ -149,10 +149,8 @@ export default function EventCard({ item, index, isSelected, onPress, onVerHorar
                   <Text style={styles.metaText} numberOfLines={1}>{item.location}</Text>
                 </View>
               )}
-              {item.price != null && (
-                <Text style={styles.price}>
-                  {item.price === 0 ? 'Gratis' : `Desde ${formatPrice(item.price)}`}
-                </Text>
+              {getEventPriceLabel(item) !== null && (
+                <Text style={styles.price}>{getEventPriceLabel(item)}</Text>
               )}
             </>
           )}

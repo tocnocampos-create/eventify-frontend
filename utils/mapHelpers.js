@@ -70,3 +70,22 @@ export const formatPrice = (price) => {
   if (price === 0) return 'Gratis';
   return `$ ${Math.round(price).toLocaleString('es-CL')}`;
 };
+
+// Returns a display string for the event price, or null if there is no price info.
+// Handles: null (no display), 0 (free), numeric price, and string priceRange
+// values like "Entrada Libre" that some scrapers produce.
+export const getEventPriceLabel = (item) => {
+  const { price, priceRange } = item || {};
+
+  // String priceRange from scraper ("Entrada Libre", "Gratis", raw string)
+  if (typeof priceRange === 'string') {
+    const pl = priceRange.toLowerCase().trim();
+    if (pl.includes('libre') || pl.includes('gratis') || pl === '0') return 'Entrada libre';
+    return `Desde ${priceRange}`;
+  }
+
+  if (price == null) return null;
+  if (price === 0) return 'Entrada libre';
+  const fmt = formatPrice(price);
+  return fmt ? `Desde ${fmt}` : null;
+};
