@@ -56,7 +56,6 @@ const SEARCH_CATEGORY_MAP = {
   'Sunsets':       { pillCategoryKey: 'Sunsets' },
   'Familiar':      { pillCategoryKey: 'Familiar' },
   'Ferias':        { pillCategoryKey: 'Ferias' },
-  'City Tour':     { pillCategoryKey: 'City Tour' },
 };
 
 export default function SearchScreen() {
@@ -234,7 +233,7 @@ export default function SearchScreen() {
   const CATEGORY_SCREEN_KEYS = new Set([
     'Jazz', 'Comedia', 'Teatro', 'Vida Nocturna',
     'Nacional', 'Barrios', 'Al aire libre', 'Festivales',
-    'City Tour', 'Museos', 'Cine',
+    'Museos', 'Cine',
     'Sunsets', 'Ferias', 'Familiar',
   ]);
 

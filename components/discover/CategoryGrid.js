@@ -18,7 +18,6 @@ const CATEGORY_IMAGE_MAP = {
   'Sunsets': require('../../assets/categories/sunsets.png'),
   'Familiar': require('../../assets/categories/familiar.png'),
   'Ferias': require('../../assets/categories/ferias.png'),
-  'City Tour': require('../../assets/categories/ciudad.png'),
 };
 
 function chunkInPairs(arr) {
