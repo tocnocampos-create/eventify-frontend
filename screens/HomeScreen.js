@@ -8,7 +8,7 @@ import BarrioDetailPanel from '../components/BarrioDetailPanel';
 import AlaireLibreSheet from '../components/AlaireLibreSheet';
 import alairelibre from '../data/alairelibre';
 import { normalizeLatLng } from '../utils/geo';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useVenues, useEvents, useNeighborhoods, useMuseumVenues } from '../hooks/useMapData';
 import { useSearch } from '../hooks/useSearch';
@@ -51,6 +51,7 @@ export default function HomeScreen() {
   const { height: SCREEN_HEIGHT } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const route = useRoute();
 
   // API data
   const { data: venues = [], isLoading: venuesLoading, isError: venuesError, refetch: refetchVenues } = useVenues();
@@ -190,6 +191,24 @@ export default function HomeScreen() {
     mapState.setSelectedEventPin(null);
     mapState.setSelectedVenue(null);
   }, []);
+
+  // Handle deep-link from CategoryScreen → Barrios tile
+  const focusHandledRef = useRef(null);
+  useEffect(() => {
+    const { focusBarrio, focusLat, focusLng } = route.params || {};
+    if (!focusBarrio || !focusLat || !focusLng) return;
+    if (focusHandledRef.current === focusBarrio.id) return;
+    focusHandledRef.current = focusBarrio.id;
+
+    setOverlayMode(1);
+    handleBarrioPress(focusBarrio);
+    setTimeout(() => {
+      mapState.animateMapToLatLng(
+        { latitude: focusLat, longitude: focusLng },
+        { zoomDeltaOverride: 0.025, applyOffset: false },
+      );
+    }, 400);
+  }, [route.params?.focusBarrio?.id]);
 
   const handleToggleFilters = useCallback(() => setShowFilters(prev => !prev), []);
   const handleCycleOverlay = useCallback(() => setOverlayMode(prev => (prev + 1) % 3), []);

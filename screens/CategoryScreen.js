@@ -21,6 +21,8 @@ import { formatEventDateTime, formatPrice } from '../utils/mapHelpers';
 import { normalizeCategory } from '../utils/filters.schema';
 import { categoryColors } from '../utils/pinColors';
 import colors from '../theme/colors';
+import barriosData from '../data/barrios';
+import { getPolygonCentroid } from '../utils/geo';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -212,6 +214,27 @@ function buildVenueFilter(categoryKey) {
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
+function BarrioCard({ barrio, onPress }) {
+  const photo = barrio.photos?.[0];
+  return (
+    <TouchableOpacity style={styles.barrioCard} activeOpacity={0.85} onPress={onPress}>
+      {photo ? (
+        <ImageBackground source={{ uri: photo }} style={styles.barrioCardImage} resizeMode="cover">
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.72)']}
+            style={StyleSheet.absoluteFillObject}
+          />
+          <Text style={styles.barrioCardName}>{barrio.name}</Text>
+        </ImageBackground>
+      ) : (
+        <View style={[styles.barrioCardImage, { backgroundColor: 'rgba(44,0,95,0.5)', justifyContent: 'flex-end', padding: 10 }]}>
+          <Text style={styles.barrioCardName}>{barrio.name}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
 function EventCard({ item, badgeColors, onPress }) {
   const category = normalizeCategory(item?.category);
   const catColor = categoryColors[category] || colors.primary;
@@ -311,6 +334,21 @@ export default function CategoryScreen() {
       menuPdfUrl: venue.menuPdfUrl,
     });
 
+  const isCityTourFallback = categoryKey === 'City Tour' && filteredEvents.length < 3;
+  const isSunsetsFallback  = categoryKey === 'Sunsets'   && filteredEvents.length < 5;
+
+  const handleBarrioNavigate = (barrio) => {
+    const centroid = getPolygonCentroid(barrio.coordinates);
+    navigation.navigate('Home', {
+      screen: 'HomeMain',
+      params: {
+        focusBarrio: barrio,
+        focusLat: centroid?.latitude,
+        focusLng: centroid?.longitude,
+      },
+    });
+  };
+
   const listHeader = (
     <View>
       {/* ── Hero ───────────────────────────────────────────────────────────── */}
@@ -349,8 +387,24 @@ export default function CategoryScreen() {
         </View>
       </View>
 
-      {/* ── Venues carousel ────────────────────────────────────────────────── */}
-      {filteredVenues.length > 0 && (
+      {/* ── BARRIOS: neighborhood grid ──────────────────────────────────────── */}
+      {categoryKey === 'Barrios' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Explora los barrios</Text>
+          <View style={styles.barrioGrid}>
+            {barriosData.map((barrio) => (
+              <BarrioCard
+                key={barrio.id}
+                barrio={barrio}
+                onPress={() => handleBarrioNavigate(barrio)}
+              />
+            ))}
+          </View>
+        </View>
+      )}
+
+      {/* ── Venues carousel (all non-Barrios categories) ───────────────────── */}
+      {categoryKey !== 'Barrios' && filteredVenues.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Lugares destacados</Text>
           <FlatList
@@ -366,10 +420,26 @@ export default function CategoryScreen() {
         </View>
       )}
 
-      {/* ── Events section header ──────────────────────────────────────────── */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Próximos eventos</Text>
-      </View>
+      {/* ── Events section header (non-Barrios) ────────────────────────────── */}
+      {categoryKey !== 'Barrios' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>
+            {isCityTourFallback ? 'Visita Cultural · Santiago' :
+             categoryKey === 'Sunsets' ? 'Eventos al atardecer' :
+             'Próximos eventos'}
+          </Text>
+          {isCityTourFallback && (
+            <Text style={styles.sectionSubtitle}>
+              Explora los mejores museos y centros culturales
+            </Text>
+          )}
+          {(categoryKey === 'Sunsets') && (
+            <Text style={styles.sectionSubtitle}>
+              After office · DJ Sets · Atardeceres en Santiago
+            </Text>
+          )}
+        </View>
+      )}
     </View>
   );
 
@@ -389,9 +459,20 @@ export default function CategoryScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
         ListEmptyComponent={
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyText}>{copy.emptyMessage}</Text>
-          </View>
+          categoryKey === 'Barrios' ? null : (
+            <View style={styles.emptyState}>
+              <Text style={styles.emptyText}>
+                {categoryKey === 'Al aire libre'
+                  ? 'Explora estos espacios al aire libre'
+                  : copy.emptyMessage}
+              </Text>
+              {categoryKey === 'Al aire libre' && (
+                <Text style={[styles.emptyText, { marginTop: 12, fontSize: 13 }]}>
+                  Más actividades al aire libre próximamente
+                </Text>
+              )}
+            </View>
+          )
         }
       />
     </TabScreenLayout>
@@ -559,5 +640,40 @@ const styles = StyleSheet.create({
     color: colors.textDim,
     textAlign: 'center',
     lineHeight: 22,
+  },
+
+  // Section subtitle (City Tour fallback, Sunsets)
+  sectionSubtitle: {
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular',
+    color: colors.textDim,
+    marginTop: -6,
+    marginBottom: 12,
+  },
+
+  // Barrios grid
+  barrioGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  barrioCard: {
+    width: (SCREEN_WIDTH - 32 - 10) / 2,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    marginBottom: 0,
+  },
+  barrioCardImage: {
+    height: 130,
+    justifyContent: 'flex-end',
+    padding: 10,
+  },
+  barrioCardName: {
+    color: '#fff',
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 13,
+    lineHeight: 18,
   },
 });
