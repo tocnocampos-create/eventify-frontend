@@ -24,7 +24,7 @@ import 'dayjs/locale/es';
 dayjs.locale('es');
 import { useEventDetail } from '../hooks/useEventDetail';
 import { normalizeCategory } from '../utils/filters.schema.js';
-import { formatPrice } from '../utils/mapHelpers';
+import { formatPrice, getEventPriceLabel } from '../utils/mapHelpers';
 import { getCinemaSchedule, formatScheduleDate } from '../utils/cinemaGrouping';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReviewModal from '../components/ReviewModal';
@@ -244,6 +244,7 @@ export default function EventDetailScreen() {
     ? event.priceRange[0] === 0 && event.priceRange[1] === 0
     : event?.price === 0;
   const hasTicketUrl = !!event?.url;
+  const isTicketmaster = !!event?.url?.includes('ticketmaster.cl');
   const { data: isSaved = false } = useIsEventSaved(routeEvent?.id);
   const toggleSave = useToggleSaveEvent(routeEvent?.id);
 
@@ -652,7 +653,7 @@ export default function EventDetailScreen() {
         ) : (
           <Text style={styles.dateText}>
             {displayDateTime}
-            {event?.price != null ? ` · ${event.price === 0 ? 'Gratis' : `Desde ${formatPrice(event.price)}`}` : ''}
+            {getEventPriceLabel(event) ? ` · ${getEventPriceLabel(event)}` : ''}
           </Text>
         )}
 
@@ -696,6 +697,17 @@ export default function EventDetailScreen() {
                     : 'Obtener Tickets'}
           </Text>
         </TouchableOpacity>
+
+        {/* Ver precios: Ticketmaster events whose price is not scraped */}
+        {isTicketmaster && event?.price == null && !isSoldOut && (
+          <TouchableOpacity
+            style={styles.verPreciosLink}
+            onPress={() => Linking.openURL(event.url).catch(() => {})}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.verPreciosText}>Ver precios en ticketmaster.cl →</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Botón trailer (cinema groups only) */}
         {isCinemaGroup && !!trailerLink && (
@@ -1016,6 +1028,12 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(229, 62, 62, 0.5)',
   },
   ticketButtonText: { color: INK, fontSize: 16, fontWeight: '700' },
+  verPreciosLink: { marginTop: 10, alignSelf: 'flex-start', paddingVertical: 2 },
+  verPreciosText: {
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular',
+    color: 'rgba(191, 160, 255, 0.7)',
+  },
   ticketButtonTextSoldOut: { color: '#E53E3E' },
   ticketButtonFree: {
     backgroundColor: 'transparent',
