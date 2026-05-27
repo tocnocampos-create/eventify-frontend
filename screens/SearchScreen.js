@@ -48,7 +48,6 @@ const SEARCH_CATEGORY_MAP = {
   'Nacional':      { pillCategoryKey: 'Nacional' },
   'Teatro':        { pillCategoryKey: 'Teatro' },
   'Vida Nocturna': { pillCategoryKey: 'Vida Nocturna' },
-  'Galerías':      { pillCategoryKey: 'Galerías' },
   'Barrios':       { pillCategoryKey: 'Barrios' },
   'Festivales':    { pillCategoryKey: 'Festivales' },
   'Cine':          { pillCategoryKey: 'Cine' },
@@ -235,7 +234,7 @@ export default function SearchScreen() {
   const CATEGORY_SCREEN_KEYS = new Set([
     'Jazz', 'Comedia', 'Teatro', 'Vida Nocturna',
     'Nacional', 'Barrios', 'Al aire libre', 'Festivales',
-    'City Tour', 'Museos', 'Galerías', 'Cine',
+    'City Tour', 'Museos', 'Cine',
     'Sunsets', 'Ferias', 'Familiar',
   ]);
 

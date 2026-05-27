@@ -10,7 +10,6 @@ const CATEGORY_IMAGE_MAP = {
   'Nacional': require('../../assets/categories/nacional.png'),
   'Teatro': require('../../assets/categories/theater.png'),
   'Vida Nocturna': require('../../assets/categories/nightlife.png'),
-  'Galerías': require('../../assets/categories/art.png'),
   'Barrios': require('../../assets/categories/barrios.png'),
   'Festivales': require('../../assets/categories/festivals.png'),
   'Cine': require('../../assets/categories/cinema.png'),
