@@ -14,8 +14,6 @@ import colors from '../theme/colors';
 import GlowingBackground from '../components/auth/GlowingBackground';
 import StyledInput from '../components/auth/StyledInput';
 import GradientButton from '../components/auth/GradientButton';
-import SocialButton from '../components/auth/SocialButton';
-import DividerLine from '../components/auth/DividerLine';
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -128,19 +126,6 @@ export default function LoginScreen({ navigation }) {
             <Text style={styles.forgotText}>¿Olvidaste tu contraseña?</Text>
           </TouchableOpacity>
 
-          <DividerLine text="o inicia sesión con" />
-
-          <View style={styles.socialContainer}>
-            <SocialButton
-              icon={require('../assets/google-icon.png')}
-              label="Continuar con Google"
-            />
-            <SocialButton
-              icon={require('../assets/apple-icon.png')}
-              label="Continuar con Apple"
-            />
-          </View>
-
           <Text style={styles.signupText}>
             ¿No tienes una cuenta?{' '}
             <Text style={styles.signupLink} onPress={() => navigation.navigate('Register')}>
@@ -194,10 +179,6 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.5)',
     fontSize: 13,
     marginTop: 4,
-  },
-  socialContainer: {
-    width: '100%',
-    gap: 10,
   },
   signupText: {
     color: 'rgba(255,255,255,0.5)',

@@ -224,10 +224,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     textAlign: 'center',
   },
-  socialContainer: {
-    width: '100%',
-    gap: 10,
-  },
   loginText: {
     color: 'rgba(255,255,255,0.5)',
     marginTop: 24,
