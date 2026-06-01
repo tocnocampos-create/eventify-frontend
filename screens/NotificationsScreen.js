@@ -47,7 +47,7 @@ function toFrontendEvent(apiEvent) {
     timeStart: apiEvent.time_start || null,
     image: apiEvent.image_url || null,
     price: apiEvent.price_range?.[0] ?? null,
-    location: null,
+    location: apiEvent.venue?.name ?? null,
     venue_id: apiEvent.venue_id,
     matchScore: apiEvent.match_score ?? 0,
   };

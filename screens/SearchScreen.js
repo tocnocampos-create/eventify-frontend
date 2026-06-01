@@ -494,17 +494,26 @@ export default function SearchScreen() {
               />
 
               {/* Venues cerca de ti */}
-              <DiscoverSection
-                title="Venues cerca de ti"
-                data={discover.nearbyVenues}
-                renderItem={({ item }) => (
-                  <DiscoverVenueCard
-                    venue={item}
-                    distanceKm={item.distanceKm}
-                    onPress={() => navigateToVenue(item)}
-                  />
-                )}
-              />
+              {discover.nearbyVenues?.length > 0 ? (
+                <DiscoverSection
+                  title="Venues cerca de ti"
+                  data={discover.nearbyVenues}
+                  renderItem={({ item }) => (
+                    <DiscoverVenueCard
+                      venue={item}
+                      distanceKm={item.distanceKm}
+                      onPress={() => navigateToVenue(item)}
+                    />
+                  )}
+                />
+              ) : (
+                <View>
+                  <Text style={styles.sectionTitle}>Venues cerca de ti</Text>
+                  <Text style={styles.emptyNearby}>
+                    Activa tu ubicación para ver venues cercanas a ti
+                  </Text>
+                </View>
+              )}
 
               {/* Para ti — authenticated only */}
               {isAuthenticated && discover.forYou?.length > 0 && (
@@ -777,6 +786,14 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_600SemiBold',
     marginLeft: 20,
     marginVertical: 10,
+  },
+
+  emptyNearby: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontFamily: 'Outfit_400Regular',
+    marginHorizontal: 20,
+    marginBottom: 16,
   },
 
   // Recommended pills

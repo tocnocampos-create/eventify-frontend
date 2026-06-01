@@ -28,6 +28,7 @@ import ReviewModal from '../components/ReviewModal';
 import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import useDragScroll from '../hooks/useDragScroll';
 import { useIsFollowingVenue, useToggleFollowVenue } from '../hooks/useUserPreferences';
+import { useAuth } from '../contexts/AuthContext';
 import { groupCinemaEvents, getCinemaSchedule } from '../utils/cinemaGrouping';
 import { isOpenNow, getStatusText, getStatusColor, getCurrentDayKey, DAY_KEYS, DAY_NAMES } from '../utils/venueHours';
 
@@ -59,6 +60,7 @@ export default function VenueScreen() {
   const route = useRoute();
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { isAuthenticated } = useAuth();
   const { venueId, venueName } = route.params;
 
   const { data, isLoading, isError } = useVenueDetail(venueId, venueName);
@@ -522,10 +524,12 @@ export default function VenueScreen() {
             </Text>
           </View>
         )}
-        <TouchableOpacity style={styles.addReviewButton} activeOpacity={0.8} onPress={() => setReviewModalVisible(true)}>
-          <Ionicons name="create-outline" size={16} color="#22003D" />
-          <Text style={styles.addReviewText}>Escribir una reseña</Text>
-        </TouchableOpacity>
+        {isAuthenticated && pastEvents.length > 0 && (
+          <TouchableOpacity style={styles.addReviewButton} activeOpacity={0.8} onPress={() => setReviewModalVisible(true)}>
+            <Ionicons name="create-outline" size={16} color="#22003D" />
+            <Text style={styles.addReviewText}>Escribir una reseña</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Eventos pasados */}
