@@ -25,7 +25,7 @@ export default {
       edgeToEdgeEnabled: true,
     },
     web: {
-      favicon: "./assets/favicon.png",
+      favicon: "./assets/logo.png",
       name: "Eventify",
       title: "Eventify · Descubre Santiago",
     },

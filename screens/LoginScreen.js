@@ -156,9 +156,10 @@ const styles = StyleSheet.create({
     resizeMode: 'contain',
   },
   title: {
-    fontSize: 36,
-    color: '#fff',
+    fontSize: 38,
+    color: '#FFFFFF',
     fontFamily: 'Poppins_700Bold',
+    fontWeight: '700',
     letterSpacing: -0.5,
   },
   subtitle: {
