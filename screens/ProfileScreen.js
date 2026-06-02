@@ -8,7 +8,7 @@ import {
   Switch,
   Modal,
   TextInput,
-  Linking,
+  ActivityIndicator,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +30,7 @@ import InterestSelector from '../components/InterestSelector';
 import colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserInterests, useSetInterests, useUserSettings, useUpdateSettings } from '../hooks/useUserPreferences';
+import { submitFeedback } from '../api/feedback';
 import { useAppConfig, getCategoryColors, getCategoryIcons } from '../hooks/useAppConfig';
 
 const AVATAR_COLORS = [
@@ -63,6 +64,7 @@ export default function ProfileScreen({ navigation }) {
   const updateSettingsMutation = useUpdateSettings();
   const [interestModalVisible, setInterestModalVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackLoading, setFeedbackLoading] = useState(false);
 
   const notificationsEnabled = settings?.notifications_enabled ?? true;
 
@@ -70,15 +72,18 @@ export default function ProfileScreen({ navigation }) {
     updateSettingsMutation.mutate({ notifications_enabled: value });
   };
 
-  const handleSendFeedback = () => {
-    const trimmed = feedbackText.trim();
-    if (!trimmed) return;
-    const subject = encodeURIComponent('Feedback Eventify');
-    const body = encodeURIComponent(trimmed);
-    Linking.openURL(`mailto:hola@eventifyapp.cl?subject=${subject}&body=${body}`).catch(() => {
-      Alert.alert('Error', 'No se pudo abrir el cliente de correo.');
-    });
-    setFeedbackText('');
+  const handleSendFeedback = async () => {
+    if (!feedbackText.trim()) return;
+    setFeedbackLoading(true);
+    try {
+      await submitFeedback(feedbackText.trim());
+      setFeedbackText('');
+      Alert.alert('¡Muchas gracias por tu feedback!', '');
+    } catch (e) {
+      Alert.alert('Error', 'No se pudo enviar el feedback. Intenta de nuevo.');
+    } finally {
+      setFeedbackLoading(false);
+    }
   };
 
   const handleSaveInterests = async (newInterests) => {
@@ -213,11 +218,15 @@ export default function ProfileScreen({ navigation }) {
             textAlignVertical="top"
           />
           <TouchableOpacity
-            style={[styles.feedbackBtn, !feedbackText.trim() && styles.feedbackBtnDim]}
+            style={[styles.feedbackBtn, (!feedbackText.trim() || feedbackLoading) && styles.feedbackBtnDim]}
             onPress={handleSendFeedback}
-            activeOpacity={feedbackText.trim() ? 0.8 : 1}
+            activeOpacity={feedbackText.trim() && !feedbackLoading ? 0.8 : 1}
+            disabled={feedbackLoading}
           >
-            <Text style={styles.feedbackBtnText}>Enviar feedback</Text>
+            {feedbackLoading
+              ? <ActivityIndicator size="small" color="#22003D" />
+              : <Text style={styles.feedbackBtnText}>Enviar feedback</Text>
+            }
           </TouchableOpacity>
         </View>
 
