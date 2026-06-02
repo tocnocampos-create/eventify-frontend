@@ -6,6 +6,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts, Outfit_400Regular, Outfit_500Medium, Outfit_600SemiBold, Outfit_700Bold } from '@expo-google-fonts/outfit';
+import { Poppins_700Bold, Poppins_800ExtraBold } from '@expo-google-fonts/poppins';
 
 import queryClient from './api/queryClient';
 import injectWebScrollbar from './utils/injectWebScrollbar';
@@ -147,6 +148,8 @@ export default function App() {
     Outfit_500Medium,
     Outfit_600SemiBold,
     Outfit_700Bold,
+    Poppins_700Bold,
+    Poppins_800ExtraBold,
   });
 
   if (!fontsLoaded) {

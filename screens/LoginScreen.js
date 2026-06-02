@@ -158,7 +158,8 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 36,
     color: '#fff',
-    fontFamily: 'Outfit_700Bold',
+    fontFamily: 'Poppins_700Bold',
+    letterSpacing: -0.5,
   },
   subtitle: {
     color: 'rgba(255,255,255,0.6)',
