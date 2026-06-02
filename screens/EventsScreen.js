@@ -159,6 +159,8 @@ function getDateRange(tag) {
   }
 }
 
+const EVENTS_PER_PAGE = 50;
+
 const CINE_BLUE = '#3B52D8';
 const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
 const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
@@ -175,9 +177,10 @@ export default function EventsScreen({ route }) {
     initialCategory ? new Set([initialCategory]) : new Set()
   );
   const [selectedTypes, setSelectedTypes] = useState(new Set());
-  const [selectedDateTag, setSelectedDateTag] = useState('ALL');
+  const [selectedDateTag, setSelectedDateTag] = useState('Hoy');
   const [showDropdown, setShowDropdown] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(EVENTS_PER_PAGE);
   // Pill-based filters from SearchScreen navigation
   const [venueTypeFilter, setVenueTypeFilter] = useState(route?.params?.initialVenueType || null);
   const [pillTimeFilter, setPillTimeFilter] = useState(route?.params?.pillTimeFilter || null);
@@ -252,7 +255,7 @@ export default function EventsScreen({ route }) {
       startDate,
       endDate,
       returnType: 'both',
-      limit: 200,
+      limit: 500,
     };
   }, [debouncedQuery, selectedDateTag, venueTypeFilter, pillCategoryKey]);
 
@@ -452,6 +455,11 @@ export default function EventsScreen({ route }) {
     [filteredEventsRaw],
   );
 
+  // Reset visible count whenever the filtered list changes (filter/search changed)
+  useEffect(() => {
+    setVisibleCount(EVENTS_PER_PAGE);
+  }, [filteredEvents]);
+
   // Check if a filter category is active
   const isFilterActive = (filterName) => {
     if (filterName === 'Fecha') return selectedDateTag !== 'ALL';
@@ -556,8 +564,6 @@ export default function EventsScreen({ route }) {
   };
 
   const renderEvent = ({ item, index }) => {
-    if (item._isCinemaGroup) return renderCinemaGroup({ item, index });
-
     const category = normalizeCategory(item?.category);
     const catColor = categoryColors[category] || colors.primary;
     const badgeBg = badgeColors[category] || 'rgba(159, 123, 255, 0.2)';
@@ -846,11 +852,22 @@ export default function EventsScreen({ route }) {
 
       {/* Event list */}
       <FlatList
-        data={filteredEvents}
+        data={filteredEvents.slice(0, visibleCount)}
         renderItem={renderEvent}
         keyExtractor={(item) => `${item.id}`}
         contentContainerStyle={{ paddingBottom: 20 }}
         style={{ flex: 1 }}
+        ListFooterComponent={
+          visibleCount < filteredEvents.length ? (
+            <TouchableOpacity
+              style={styles.loadMoreButton}
+              onPress={() => setVisibleCount((c) => c + EVENTS_PER_PAGE)}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.loadMoreText}>Cargar más</Text>
+            </TouchableOpacity>
+          ) : null
+        }
       />
       </View>
 
@@ -865,6 +882,21 @@ export default function EventsScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
+  loadMoreButton: {
+    alignSelf: 'center',
+    marginVertical: 16,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: 'rgba(159, 123, 255, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(159, 123, 255, 0.4)',
+  },
+  loadMoreText: {
+    color: '#BFA0FF',
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.bg,
