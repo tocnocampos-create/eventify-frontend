@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
+  Animated,
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -65,11 +66,22 @@ export default function ProfileScreen({ navigation }) {
   const [interestModalVisible, setInterestModalVisible] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [feedbackLoading, setFeedbackLoading] = useState(false);
+  const [toastVisible, setToastVisible] = useState(false);
+  const toastOpacity = useRef(new Animated.Value(0)).current;
 
   const notificationsEnabled = settings?.notifications_enabled ?? true;
 
   const handleNotificationsToggle = (value) => {
     updateSettingsMutation.mutate({ notifications_enabled: value });
+  };
+
+  const showToast = () => {
+    setToastVisible(true);
+    Animated.sequence([
+      Animated.timing(toastOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+      Animated.delay(2000),
+      Animated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setToastVisible(false));
   };
 
   const handleSendFeedback = async () => {
@@ -78,9 +90,9 @@ export default function ProfileScreen({ navigation }) {
     try {
       await submitFeedback(feedbackText.trim());
       setFeedbackText('');
-      Alert.alert('¡Muchas gracias por tu feedback!', '');
+      showToast();
     } catch (e) {
-      Alert.alert('Error', 'No se pudo enviar el feedback. Intenta de nuevo.');
+      Alert.alert('Error', 'No se pudo enviar. Intenta de nuevo.');
     } finally {
       setFeedbackLoading(false);
     }
@@ -259,6 +271,12 @@ export default function ProfileScreen({ navigation }) {
           </View>
         </SafeAreaView>
       </Modal>
+
+      {toastVisible && (
+        <Animated.View style={[styles.toast, { opacity: toastOpacity }]}>
+          <Text style={styles.toastText}>¡Muchas gracias por tu feedback! 🙌</Text>
+        </Animated.View>
+      )}
     </TabScreenLayout>
   );
 }
@@ -438,5 +456,26 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
     paddingTop: 20,
+  },
+  toast: {
+    position: 'absolute',
+    bottom: 100,
+    alignSelf: 'center',
+    backgroundColor: '#534AB7',
+    paddingHorizontal: 24,
+    paddingVertical: 14,
+    borderRadius: 24,
+    zIndex: 999,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'center',
   },
 });
