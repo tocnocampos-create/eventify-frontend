@@ -162,12 +162,25 @@ const WebMap = forwardRef(function WebMap(
       const maps = window.google && window.google.maps;
       if (!maps || !mapRef.current) { console.log('[WebMap] animateToRegion skipped — maps or mapRef not ready'); return; }
       const zoom = latLngToZoom(region.latitudeDelta || initialRegion.latitudeDelta);
-      console.log(`[WebMap] animateToRegion lat=${region.latitude} lon=${region.longitude} delta=${region.latitudeDelta} → zoom=${zoom}`);
-      const center = new maps.LatLng(region.latitude, region.longitude);
-      mapRef.current.panTo(center);
+
+      // Set zoom first so getBounds() reflects the target zoom level
       mapRef.current.setZoom(zoom);
-      centerRef.current = center;
-      notifyRegionChange();
+
+      // Carousel covers ~40% of screen height, so the visible map centre
+      // is ~30% from the top (not 50%). Shift the map centre south by
+      // 20% of the visible lat range so the pin lands in the visual centre.
+      const bounds = mapRef.current.getBounds();
+      const visibleLatRange = bounds
+        ? bounds.getNorthEast().lat() - bounds.getSouthWest().lat()
+        : 0.003;
+      const latOffset = visibleLatRange * 0.2;
+
+      const targetLat = region.latitude - latOffset;
+      const targetLng = region.longitude;
+      console.log(`[WebMap] animateToRegion lat=${region.latitude} lon=${region.longitude} zoom=${zoom} latOffset=${latOffset.toFixed(6)} → targetLat=${targetLat.toFixed(6)}`);
+
+      smoothPanTo(mapRef.current, targetLat, targetLng);
+      centerRef.current = new maps.LatLng(targetLat, targetLng);
     },
     setOptions: (options) => {
       if (!mapRef.current) return;
@@ -631,6 +644,26 @@ function outdoorPinIcon(maps) {
 function zoomToLatDelta(zoom) {
   if (zoom == null) return 0.02;
   return 0.02 * Math.pow(2, 8 - zoom);
+}
+
+function smoothPanTo(map, targetLat, targetLng) {
+  const start = map.getCenter();
+  if (!start) { map.setCenter({ lat: targetLat, lng: targetLng }); return; }
+  const startLat = start.lat();
+  const startLng = start.lng();
+  const duration = 450;
+  const t0 = performance.now();
+
+  const step = (now) => {
+    const p = Math.min((now - t0) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3); // ease-out cubic
+    map.setCenter({
+      lat: startLat + (targetLat - startLat) * ease,
+      lng: startLng + (targetLng - startLng) * ease,
+    });
+    if (p < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
 // Create a custom icon for barrio text labels
