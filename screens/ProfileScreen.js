@@ -405,7 +405,7 @@ const styles = StyleSheet.create({
     padding: 12,
     color: colors.text,
     fontFamily: 'Outfit_400Regular',
-    fontSize: 14,
+    fontSize: 16,
     minHeight: 80,
     marginBottom: 10,
   },
