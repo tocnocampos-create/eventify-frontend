@@ -23,7 +23,7 @@ export const STREET_ZOOM_DELTA_NATIVE = 0.008;
 export const STREET_ZOOM_RELAX_FACTOR = 1.7;
 export const PIN_ZOOM_OUT_DELTA_WEB = 0.0008;
 export const PIN_ZOOM_OUT_DELTA_NATIVE = 0.004;
-export const CAROUSEL_ZOOM_DELTA_WEB = 0.02;
+export const CAROUSEL_ZOOM_DELTA_WEB = 0.001; // latLngToZoom(0.001) ≈ zoom 12 (neighbourhood)
 export const CAROUSEL_ZOOM_DELTA_NATIVE = 0.02;
 export const PIN_VERTICAL_OFFSET_FACTOR = 0.22;
 

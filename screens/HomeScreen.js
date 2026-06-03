@@ -307,6 +307,11 @@ export default function HomeScreen() {
   }, [filterState.handleCalendarApply]);
 
   // ===== Carousel scroll handlers =====
+  // Web: CSS snap fires scroll events AFTER onScrollEndDrag (before snap settles),
+  // so we debounce via onScroll and read the final offset 150 ms after the last event.
+  const webScrollOffsetRef = useRef(0);
+  const webScrollTimerRef = useRef(null);
+
   const handleScrollBeginDrag = useCallback(() => {
     mapState.setIsCarouselScrolling(true);
     if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
@@ -316,6 +321,14 @@ export default function HomeScreen() {
 
   const handleScrollEndDrag = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
+    if (Platform.OS === 'web') {
+      // Web centering is handled by the debounced onScroll handler below.
+      if (mapState.mapRef.current?.setOptions) {
+        mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
+      }
+      return;
+    }
+    // Native: onScrollEndDrag offset is reliable (snap already settled before this).
     const index = Math.round(e.nativeEvent.contentOffset.x / 240);
     if (index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
@@ -324,20 +337,35 @@ export default function HomeScreen() {
         mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
       }
     }
-    if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
-      mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
-    }
   }, [groupedEvents, mapState.centerMapOnEvent]);
 
   const handleCarouselScroll = useCallback((e) => {
     if (Platform.OS !== 'web') return;
-    const index = Math.round(e.nativeEvent.contentOffset.x / 240);
+    const offset = e.nativeEvent.contentOffset.x;
+    webScrollOffsetRef.current = offset;
+
+    // Update card highlight during scroll
+    const index = Math.round(offset / 240);
     if (index !== mapState.selectedIndex && index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
     }
-  }, [mapState.selectedIndex, groupedEvents.length]);
+
+    // Debounce pan: 150 ms after the last scroll event the CSS snap has settled,
+    // so webScrollOffsetRef.current holds the true final offset.
+    clearTimeout(webScrollTimerRef.current);
+    webScrollTimerRef.current = setTimeout(() => {
+      const finalIndex = Math.round(webScrollOffsetRef.current / 240);
+      if (finalIndex >= 0 && finalIndex < groupedEvents.length) {
+        const event = groupedEvents[finalIndex];
+        if (event) {
+          mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
+        }
+      }
+    }, 150);
+  }, [mapState.selectedIndex, mapState.centerMapOnEvent, groupedEvents]);
 
   const handleMomentumScrollEnd = useCallback((e) => {
+    // Native only — web does not fire momentumScrollEnd.
     mapState.setIsCarouselScrolling(false);
     const index = Math.round(e.nativeEvent.contentOffset.x / 240);
     if (index >= 0 && index < groupedEvents.length) {
@@ -346,9 +374,6 @@ export default function HomeScreen() {
       if (event) {
         mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
       }
-    }
-    if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
-      mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
   }, [groupedEvents, mapState.centerMapOnEvent]);
 
