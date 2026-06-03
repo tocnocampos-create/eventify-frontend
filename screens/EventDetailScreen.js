@@ -397,12 +397,14 @@ export default function EventDetailScreen() {
   const products = detailData?.products || [];
 
   // communityLinks already declared above (from detailData)
-  const trailerLink = isCinemaGroup
+  // showTrailerSection: true for cinema groups AND for individual Cine events opened
+  // via other navigation paths (venue panel, search) that don't carry _isCinemaGroup.
+  const showTrailerSection = isCinemaGroup || event?.category === 'Cine';
+  const trailerLink = showTrailerSection
     ? communityLinks.find(l => l.platform === 'youtube') || null
     : null;
-  // For cinema groups, the youtube link is shown as a dedicated trailer button —
-  // filter it out of the general community section to avoid duplication.
-  const visibleCommunityLinks = isCinemaGroup
+  // YouTube link shown as "Ver Trailer" button — always exclude from the community list.
+  const visibleCommunityLinks = showTrailerSection
     ? communityLinks.filter(l => l.platform !== 'youtube')
     : communityLinks;
 
@@ -423,7 +425,8 @@ export default function EventDetailScreen() {
 
   const hasProducts = products.length > 0 && !shouldHideProducts;
   const hasReview = isReviewCategory && reviewData?.text;
-  const hasCommunity = visibleCommunityLinks.length > 0;
+  // Never show Comunidad section for cinema events — trailer has its own button.
+  const hasCommunity = !showTrailerSection && visibleCommunityLinks.length > 0;
 
   const openInGoogleMaps = () => {
     if (!normalizedCoord) return;
@@ -728,8 +731,8 @@ export default function EventDetailScreen() {
           </Text>
         </TouchableOpacity>
 
-        {/* Botón trailer (cinema groups only) */}
-        {isCinemaGroup && !!trailerLink && (
+        {/* Botón trailer (cinema events — groups and standalone Cine) */}
+        {showTrailerSection && !!trailerLink && (
           <TouchableOpacity
             style={styles.trailerButton}
             onPress={() =>
