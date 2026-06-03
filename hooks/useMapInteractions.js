@@ -77,6 +77,7 @@ export default function useMapInteractions({
       longitudeDelta: targetLonDelta,
     };
 
+    console.log(`[mapInteractions] animateToRegion lat=${targetRegion.latitude} lon=${targetRegion.longitude} delta=${targetRegion.latitudeDelta}`);
     mapRef.current.animateToRegion(targetRegion, 350);
     mapRegionRef.current = { ...targetRegion };
   }, []);

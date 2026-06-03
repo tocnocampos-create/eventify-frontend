@@ -321,19 +321,20 @@ export default function HomeScreen() {
 
   const handleScrollEndDrag = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
-    if (Platform.OS === 'web') {
-      // Web centering is handled by the debounced onScroll handler below.
-      if (mapState.mapRef.current?.setOptions) {
-        mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
-      }
-      return;
+    if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
+      mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
-    // Native: onScrollEndDrag offset is reliable (snap already settled before this).
-    const index = Math.round(e.nativeEvent.contentOffset.x / 240);
+    // On web: Math.round(offset/snapInterval) correctly predicts the CSS snap destination
+    // for single-card swipes. The debounced onScroll handler below corrects multi-card
+    // flicks once the snap settles.
+    const offset = e.nativeEvent.contentOffset.x;
+    const index = Math.round(offset / 240);
+    console.log(`[carousel] scrollEndDrag offset=${offset} → index=${index} (platform=${Platform.OS})`);
     if (index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
       const event = groupedEvents[index];
       if (event) {
+        console.log(`[carousel] centering on event id=${event.id} lat=${event.latitude ?? event.coordinates?.[0]} lon=${event.longitude ?? event.coordinates?.[1]}`);
         mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
       }
     }
@@ -355,6 +356,7 @@ export default function HomeScreen() {
     clearTimeout(webScrollTimerRef.current);
     webScrollTimerRef.current = setTimeout(() => {
       const finalIndex = Math.round(webScrollOffsetRef.current / 240);
+      console.log(`[carousel] scroll debounce finalOffset=${webScrollOffsetRef.current} → index=${finalIndex}`);
       if (finalIndex >= 0 && finalIndex < groupedEvents.length) {
         const event = groupedEvents[finalIndex];
         if (event) {

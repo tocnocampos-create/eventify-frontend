@@ -160,10 +160,11 @@ const WebMap = forwardRef(function WebMap(
   useImperativeHandle(ref, () => ({
     animateToRegion: (region, duration) => {
       const maps = window.google && window.google.maps;
-      if (!maps || !mapRef.current) return;
+      if (!maps || !mapRef.current) { console.log('[WebMap] animateToRegion skipped — maps or mapRef not ready'); return; }
+      const zoom = latLngToZoom(region.latitudeDelta || initialRegion.latitudeDelta);
+      console.log(`[WebMap] animateToRegion lat=${region.latitude} lon=${region.longitude} delta=${region.latitudeDelta} → zoom=${zoom}`);
       const center = new maps.LatLng(region.latitude, region.longitude);
       mapRef.current.panTo(center);
-      const zoom = latLngToZoom(region.latitudeDelta || initialRegion.latitudeDelta);
       mapRef.current.setZoom(zoom);
       centerRef.current = center;
       notifyRegionChange();
