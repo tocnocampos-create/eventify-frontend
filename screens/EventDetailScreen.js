@@ -710,22 +710,6 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Botón trailer (cinema groups only) */}
-        {isCinemaGroup && !!trailerLink && (
-          <TouchableOpacity
-            style={styles.trailerButton}
-            onPress={() =>
-              Linking.openURL(trailerLink.url).catch(() =>
-                Alert.alert('Error', 'No se pudo abrir el trailer.')
-              )
-            }
-            activeOpacity={0.9}
-          >
-            <Ionicons name="logo-youtube" size={18} color="#fff" style={{ marginRight: 8 }} />
-            <Text style={styles.trailerButtonText}>Ver trailer</Text>
-          </TouchableOpacity>
-        )}
-
         {/* Guardar plan */}
         <TouchableOpacity
           style={[styles.savePlanButton, isSaved && styles.savePlanButtonActive]}
@@ -743,6 +727,22 @@ export default function EventDetailScreen() {
             {isSaved ? 'Guardado en tus planes' : 'Guardar en tus planes'}
           </Text>
         </TouchableOpacity>
+
+        {/* Botón trailer (cinema groups only) */}
+        {isCinemaGroup && !!trailerLink && (
+          <TouchableOpacity
+            style={styles.trailerButton}
+            onPress={() =>
+              Linking.openURL(trailerLink.url).catch(() =>
+                Alert.alert('Error', 'No se pudo abrir el trailer.')
+              )
+            }
+            activeOpacity={0.9}
+          >
+            <Ionicons name="logo-youtube" size={18} color="#fff" style={{ marginRight: 8 }} />
+            <Text style={styles.trailerButtonText}>Ver trailer</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Mapa pequeño */}
         <View style={styles.mapWrapper}>
