@@ -17,8 +17,8 @@ const CINE_BLUE = colors.pinCine;
 // Fixed card dimensions — every card in the horizontal scroll is identical.
 const CARD_WIDTH   = 220;
 const IMAGE_HEIGHT = 120;
-// Total card height: image(120) + content(108) + accent(2) = 230
-const CARD_HEIGHT  = 230;
+// Total card height: image(120) + content(130) + accent(2) = 252
+const CARD_HEIGHT  = 252;
 const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
 const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
 

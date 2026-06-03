@@ -33,6 +33,8 @@ import {
   getCarouselZoomDelta,
 } from '../utils/mapHelpers';
 
+import { groupCinemaEvents } from '../utils/cinemaGrouping';
+
 // UI Components
 import OnboardingTour from '../components/OnboardingTour';
 import MapSearchBar from '../components/home/MapSearchBar';
@@ -111,6 +113,12 @@ export default function HomeScreen() {
     selectedDay: filterState.selectedDay,
     selectedDays: filterState.selectedDays,
   });
+
+  // Grouped events for carousel (cinema showtimes collapsed to one card per movie+venue)
+  const groupedEvents = useMemo(
+    () => groupCinemaEvents(filterState.filteredEvents),
+    [filterState.filteredEvents]
+  );
 
   // ===== Location effects =====
   useEffect(() => {
@@ -308,35 +316,41 @@ export default function HomeScreen() {
 
   const handleScrollEndDrag = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
-    const index = Math.round(e.nativeEvent.contentOffset.x / 270);
-    if (index >= 0 && index < filterState.filteredEvents.length) {
-      mapState.isUserSwipedRef.current = true;
+    const index = Math.round(e.nativeEvent.contentOffset.x / 240);
+    if (index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
+      const event = groupedEvents[index];
+      if (event) {
+        mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
+      }
     }
     if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
       mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
-  }, [filterState.filteredEvents.length]);
+  }, [groupedEvents, mapState.centerMapOnEvent]);
 
   const handleCarouselScroll = useCallback((e) => {
     if (Platform.OS !== 'web') return;
-    const index = Math.round(e.nativeEvent.contentOffset.x / 270);
-    if (index !== mapState.selectedIndex && index >= 0 && index < filterState.filteredEvents.length) {
+    const index = Math.round(e.nativeEvent.contentOffset.x / 240);
+    if (index !== mapState.selectedIndex && index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
     }
-  }, [mapState.selectedIndex, filterState.filteredEvents.length]);
+  }, [mapState.selectedIndex, groupedEvents.length]);
 
   const handleMomentumScrollEnd = useCallback((e) => {
     mapState.setIsCarouselScrolling(false);
-    const index = Math.round(e.nativeEvent.contentOffset.x / 270);
-    if (index >= 0 && index < filterState.filteredEvents.length) {
-      mapState.isUserSwipedRef.current = true;
+    const index = Math.round(e.nativeEvent.contentOffset.x / 240);
+    if (index >= 0 && index < groupedEvents.length) {
       mapState.setSelectedIndex(index);
+      const event = groupedEvents[index];
+      if (event) {
+        mapState.centerMapOnEvent(event, { force: true, zoomDeltaOverride: getCarouselZoomDelta() });
+      }
     }
     if (Platform.OS === 'web' && mapState.mapRef.current?.setOptions) {
       mapState.mapRef.current.setOptions({ gestureHandling: 'greedy' });
     }
-  }, [filterState.filteredEvents.length]);
+  }, [groupedEvents, mapState.centerMapOnEvent]);
 
   // ===== Computed =====
   const venueMarkers = useMemo(() => {
@@ -711,6 +725,7 @@ export default function HomeScreen() {
       {mapState.showPanel && (
         <BottomCarousel
           filteredEvents={filterState.filteredEvents}
+          groupedEvents={groupedEvents}
           selectedIndex={mapState.selectedIndex}
           activeFilters={filterState.activeFilters}
           flatListRef={mapState.flatListRef}

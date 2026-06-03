@@ -22,6 +22,7 @@ const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 export default function BottomCarousel({
   filteredEvents,
+  groupedEvents: groupedEventsProp,
   selectedIndex,
   activeFilters,
   flatListRef,
@@ -46,8 +47,9 @@ export default function BottomCarousel({
   // Cinema showtime sheet state
   const [cinemaSheetGroup, setCinemaSheetGroup] = useState(null);
 
-  // Group cinema events so one card = one movie (not one card per showtime)
-  const groupedEvents = useMemo(() => groupCinemaEvents(filteredEvents), [filteredEvents]);
+  // Use pre-computed groupedEvents from parent when available (keeps carousel indices in sync with scroll handlers)
+  const computedGroupedEvents = useMemo(() => groupCinemaEvents(filteredEvents), [filteredEvents]);
+  const groupedEvents = groupedEventsProp ?? computedGroupedEvents;
 
   // ─── Entrance animation ───
   const entrance = useSharedValue(0);
