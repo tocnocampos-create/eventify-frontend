@@ -439,9 +439,14 @@ export default function EventDetailScreen() {
   const handleCabify = () => {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
-    const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
-    const url = `https://cabify.com/santiago?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lat, lng], alias: decodeURIComponent(name) }] }))}`;
-    Linking.openURL(url);
+    const name = event?.venueName || event?.location || 'Destino';
+    // Cabify expects [lng, lat] order (GeoJSON convention)
+    const stopsJson = encodeURIComponent(JSON.stringify({ stops: [{ loc: [lng, lat], alias: name }] }));
+    // Custom scheme opens app directly; falls back to web if not installed or on web
+    const cabifyScheme = `cabify://cabify.com/city?json=${stopsJson}`;
+    Linking.openURL(cabifyScheme).catch(() => {
+      Linking.openURL('https://cabify.com');
+    });
   };
 
   const openInGoogleMaps = () => {
