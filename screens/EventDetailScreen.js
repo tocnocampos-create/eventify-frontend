@@ -440,26 +440,11 @@ export default function EventDetailScreen() {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
     const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
-    const iosStore = 'https://apps.apple.com/cl/app/cabify/id476087442';
-    const androidStore = 'https://play.google.com/store/apps/details?id=com.cabify.rider';
-    const store = (Platform.OS === 'ios' || (Platform.OS === 'web' && /iPhone|iPad|iPod/.test(navigator.userAgent)))
-      ? iosStore : androidStore;
-
-    // Format A — flat query params, mirrors Uber's confirmed-working style
-    const schemeA = `cabify://request?dropoff_latitude=${lat}&dropoff_longitude=${lng}&dropoff_nickname=${name}`;
-    // Format B — JSON stops (previous attempt, kept as fallback)
-    const schemeB = `cabify://cabify.com/city?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lng, lat], alias: decodeURIComponent(name) }] }))}`;
-
-    if (Platform.OS === 'web') {
-      window.location.href = schemeA;
-      setTimeout(() => { window.open(store, '_blank'); }, 2000);
-    } else {
-      Linking.openURL(schemeA).catch(() =>
-        Linking.openURL(schemeB).catch(() =>
-          Linking.openURL(store)
-        )
-      );
-    }
+    // Mirrors Uber's confirmed-working HTTPS universal link pattern exactly.
+    // If Cabify has universal links configured, iOS/Android will open the app
+    // with destination prefilled. If not, opens cabify.com (still a useful launcher).
+    const url = `https://cabify.com/rides/new?destination[latitude]=${lat}&destination[longitude]=${lng}&destination[name]=${name}`;
+    Linking.openURL(url);
   };
 
   const openInGoogleMaps = () => {
