@@ -440,13 +440,24 @@ export default function EventDetailScreen() {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
     const name = event?.venueName || event?.location || 'Destino';
-    // Cabify expects [lng, lat] order (GeoJSON convention)
     const stopsJson = encodeURIComponent(JSON.stringify({ stops: [{ loc: [lng, lat], alias: name }] }));
-    // Custom scheme opens app directly; falls back to web if not installed or on web
-    const cabifyScheme = `cabify://cabify.com/city?json=${stopsJson}`;
-    Linking.openURL(cabifyScheme).catch(() => {
-      Linking.openURL('https://cabify.com');
-    });
+    const scheme = `cabify://cabify.com/city?json=${stopsJson}`;
+    const iosStore = 'https://apps.apple.com/cl/app/cabify/id476087442';
+    const androidStore = 'https://play.google.com/store/apps/details?id=com.cabify.rider';
+
+    if (Platform.OS === 'web') {
+      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+      // Attempt scheme; after 2s assume app not installed and redirect to store
+      window.location.href = scheme;
+      setTimeout(() => {
+        window.open(isIOS ? iosStore : androidStore, '_blank');
+      }, 2000);
+    } else {
+      const isIOS = Platform.OS === 'ios';
+      Linking.openURL(scheme).catch(() => {
+        Linking.openURL(isIOS ? iosStore : androidStore);
+      });
+    }
   };
 
   const openInGoogleMaps = () => {
