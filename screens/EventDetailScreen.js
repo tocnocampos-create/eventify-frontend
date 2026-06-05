@@ -439,24 +439,26 @@ export default function EventDetailScreen() {
   const handleCabify = () => {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
-    const name = event?.venueName || event?.location || 'Destino';
-    const stopsJson = encodeURIComponent(JSON.stringify({ stops: [{ loc: [lng, lat], alias: name }] }));
-    const scheme = `cabify://cabify.com/city?json=${stopsJson}`;
+    const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
     const iosStore = 'https://apps.apple.com/cl/app/cabify/id476087442';
     const androidStore = 'https://play.google.com/store/apps/details?id=com.cabify.rider';
+    const store = (Platform.OS === 'ios' || (Platform.OS === 'web' && /iPhone|iPad|iPod/.test(navigator.userAgent)))
+      ? iosStore : androidStore;
+
+    // Format A — flat query params, mirrors Uber's confirmed-working style
+    const schemeA = `cabify://request?dropoff_latitude=${lat}&dropoff_longitude=${lng}&dropoff_nickname=${name}`;
+    // Format B — JSON stops (previous attempt, kept as fallback)
+    const schemeB = `cabify://cabify.com/city?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lng, lat], alias: decodeURIComponent(name) }] }))}`;
 
     if (Platform.OS === 'web') {
-      const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
-      // Attempt scheme; after 2s assume app not installed and redirect to store
-      window.location.href = scheme;
-      setTimeout(() => {
-        window.open(isIOS ? iosStore : androidStore, '_blank');
-      }, 2000);
+      window.location.href = schemeA;
+      setTimeout(() => { window.open(store, '_blank'); }, 2000);
     } else {
-      const isIOS = Platform.OS === 'ios';
-      Linking.openURL(scheme).catch(() => {
-        Linking.openURL(isIOS ? iosStore : androidStore);
-      });
+      Linking.openURL(schemeA).catch(() =>
+        Linking.openURL(schemeB).catch(() =>
+          Linking.openURL(store)
+        )
+      );
     }
   };
 
