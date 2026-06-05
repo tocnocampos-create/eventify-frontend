@@ -428,6 +428,28 @@ export default function EventDetailScreen() {
   // Never show Comunidad section for cinema events — trailer has its own button.
   const hasCommunity = !showTrailerSection && visibleCommunityLinks.length > 0;
 
+  const handleUber = () => {
+    const lat = normalizedCoord?.latitude;
+    const lng = normalizedCoord?.longitude;
+    const venueName = event?.venueName || event?.location || 'Destino';
+    const uberDeepLink = `uber://?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}&dropoff[nickname]=${encodeURIComponent(venueName)}`;
+    const uberWeb = `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}&dropoff[nickname]=${encodeURIComponent(venueName)}`;
+    Linking.canOpenURL(uberDeepLink).then(supported => {
+      Linking.openURL(supported ? uberDeepLink : uberWeb);
+    });
+  };
+
+  const handleCabify = () => {
+    const lat = normalizedCoord?.latitude;
+    const lng = normalizedCoord?.longitude;
+    const venueName = event?.venueName || event?.location || 'Destino';
+    const cabifyDeepLink = `cabify://cabify.com/city?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lat, lng], alias: venueName }] }))}`;
+    const cabifyWeb = `https://cabify.com/`;
+    Linking.canOpenURL(cabifyDeepLink).then(supported => {
+      Linking.openURL(supported ? cabifyDeepLink : cabifyWeb);
+    });
+  };
+
   const openInGoogleMaps = () => {
     if (!normalizedCoord) return;
     const { latitude, longitude } = normalizedCoord;
@@ -745,6 +767,18 @@ export default function EventDetailScreen() {
             <Ionicons name="logo-youtube" size={18} color="#fff" style={{ marginRight: 8 }} />
             <Text style={styles.trailerButtonText}>Ver trailer</Text>
           </TouchableOpacity>
+        )}
+
+        {/* Transport buttons */}
+        {normalizedCoord && (
+          <View style={styles.transportRow}>
+            <TouchableOpacity style={styles.transportBtn} onPress={handleUber}>
+              <Text style={styles.transportBtnText}>🚗 Pedir Uber</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.transportBtn} onPress={handleCabify}>
+              <Text style={styles.transportBtnText}>🚕 Pedir Cabify</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Mapa pequeño */}
@@ -1295,6 +1329,27 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   trailerButtonText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+
+  transportRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 20,
+    marginHorizontal: 16,
+  },
+  transportBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  transportBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '500',
+  },
 
   // Lightbox styles
   lightboxContainer: {
