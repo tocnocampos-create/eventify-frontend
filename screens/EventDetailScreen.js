@@ -439,12 +439,20 @@ export default function EventDetailScreen() {
   const handleCabify = () => {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
-    const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
-    // Mirrors Uber's confirmed-working HTTPS universal link pattern exactly.
-    // If Cabify has universal links configured, iOS/Android will open the app
-    // with destination prefilled. If not, opens cabify.com (still a useful launcher).
-    const url = `https://cabify.com/rides/new?destination[latitude]=${lat}&destination[longitude]=${lng}&destination[name]=${name}`;
-    Linking.openURL(url);
+    const name = event?.venueName || event?.location || 'Destino';
+    // Cabify Chile does not support destination prefilling via deep link.
+    // cabify://request opens the app directly; fallback to App Store if not installed.
+    const cabifyScheme = `cabify://request?dropoff_latitude=${lat}&dropoff_longitude=${lng}&dropoff_nickname=${encodeURIComponent(name)}`;
+    if (Platform.OS === 'web') {
+      window.location.href = cabifyScheme;
+      setTimeout(() => {
+        window.open('https://apps.apple.com/cl/app/cabify/id476087442', '_blank');
+      }, 2000);
+    } else {
+      Linking.openURL(cabifyScheme).catch(() => {
+        Linking.openURL('https://apps.apple.com/cl/app/cabify/id476087442');
+      });
+    }
   };
 
   const openInGoogleMaps = () => {
