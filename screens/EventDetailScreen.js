@@ -431,23 +431,17 @@ export default function EventDetailScreen() {
   const handleUber = () => {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
-    const venueName = event?.venueName || event?.location || 'Destino';
-    const uberDeepLink = `uber://?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}&dropoff[nickname]=${encodeURIComponent(venueName)}`;
-    const uberWeb = `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}&dropoff[nickname]=${encodeURIComponent(venueName)}`;
-    Linking.canOpenURL(uberDeepLink).then(supported => {
-      Linking.openURL(supported ? uberDeepLink : uberWeb);
-    });
+    const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
+    const url = `https://m.uber.com/ul/?action=setPickup&dropoff[latitude]=${lat}&dropoff[longitude]=${lng}&dropoff[nickname]=${name}`;
+    Linking.openURL(url);
   };
 
   const handleCabify = () => {
     const lat = normalizedCoord?.latitude;
     const lng = normalizedCoord?.longitude;
-    const venueName = event?.venueName || event?.location || 'Destino';
-    const cabifyDeepLink = `cabify://cabify.com/city?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lat, lng], alias: venueName }] }))}`;
-    const cabifyWeb = `https://cabify.com/`;
-    Linking.canOpenURL(cabifyDeepLink).then(supported => {
-      Linking.openURL(supported ? cabifyDeepLink : cabifyWeb);
-    });
+    const name = encodeURIComponent(event?.venueName || event?.location || 'Destino');
+    const url = `https://cabify.com/santiago?json=${encodeURIComponent(JSON.stringify({ stops: [{ loc: [lat, lng], alias: decodeURIComponent(name) }] }))}`;
+    Linking.openURL(url);
   };
 
   const openInGoogleMaps = () => {
@@ -769,18 +763,6 @@ export default function EventDetailScreen() {
           </TouchableOpacity>
         )}
 
-        {/* Transport buttons */}
-        {normalizedCoord && (
-          <View style={styles.transportRow}>
-            <TouchableOpacity style={styles.transportBtn} onPress={handleUber}>
-              <Text style={styles.transportBtnText}>🚗 Pedir Uber</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.transportBtn} onPress={handleCabify}>
-              <Text style={styles.transportBtnText}>🚕 Pedir Cabify</Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
         {/* Mapa pequeño */}
         <View style={styles.mapWrapper}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -792,6 +774,17 @@ export default function EventDetailScreen() {
               </TouchableOpacity>
             )}
           </View>
+
+          {normalizedCoord && (
+            <View style={styles.transportRow}>
+              <TouchableOpacity style={styles.uberBtn} onPress={handleUber} activeOpacity={0.85}>
+                <Text style={styles.uberText}>Uber</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.cabifyBtn} onPress={handleCabify} activeOpacity={0.85}>
+                <Text style={styles.cabifyText}>cabify</Text>
+              </TouchableOpacity>
+            </View>
+          )}
 
           <View style={styles.mapRoundedClip}>
             {Platform.OS === 'web' ? (
@@ -1332,23 +1325,33 @@ const styles = StyleSheet.create({
 
   transportRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 20,
-    marginHorizontal: 16,
-  },
-  transportBtn: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderWidth: 0.5,
-    borderColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 12,
-    paddingVertical: 12,
     alignItems: 'center',
+    marginBottom: 8,
+    marginTop: 4,
   },
-  transportBtnText: {
+  uberBtn: {
+    backgroundColor: '#000000',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+    marginRight: 8,
+  },
+  uberText: {
     color: '#fff',
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: -0.5,
+  },
+  cabifyBtn: {
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 20,
+  },
+  cabifyText: {
+    color: '#fff',
+    fontSize: 13,
+    fontWeight: '600',
   },
 
   // Lightbox styles
