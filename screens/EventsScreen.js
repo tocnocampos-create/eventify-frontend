@@ -17,6 +17,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
+import DateSelector from '../components/home/DateSelector';
 import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import { useSearch } from '../hooks/useSearch';
 import useDragScroll from '../hooks/useDragScroll';
@@ -45,13 +46,9 @@ import dayjs from 'dayjs';
 import 'dayjs/locale/es';
 dayjs.locale('es');
 
-// utilidades de filtros (solo logica)
-import { isLive } from '../utils/filtering.js';
 import { SUBCATEGORIES as FALLBACK_SUBCATEGORIES, normalizeEventType } from '../utils/filters.schema.js';
 
 // ── Pill-category keyword filter ──────────────────────────────────────────────
-// Maps each SearchScreen pill key to the keywords/types/categories to match.
-// Priority: keywords array (event.keywords) → event.type → event.category
 const PILL_CATEGORY_FILTER_MAP = {
   'Nacional':       { keywords: ['folclore', 'folklore', 'cueca', 'música nacional',
                                   'banda chilena', 'artista chileno', 'cumbia chilena', 'latin folk'] },
@@ -78,27 +75,17 @@ const PILL_CATEGORY_FILTER_MAP = {
 };
 
 /**
- * Returns a predicate function for the given pill key.
- *
  * Pills that declare explicit `categories` (Teatro, Comedia, Cine) match ONLY
- * on event.category. Keyword matching is intentionally skipped for these because
- * event names often contain venue names (e.g. "Kevin Kaarl - Teatro Coliseo"),
- * which causes the classifier to add venue-derived keywords like "teatro" to a
- * Música event — making it incorrectly match a Teatro category filter.
- *
- * Keyword-only pills (Al aire libre, Jazz, Nacional, etc.) continue to match
- * against event.keywords and event.type as before.
+ * on event.category to avoid keyword false positives from venue names.
  */
 function getCategoryFilter(categoryKey) {
   const spec = PILL_CATEGORY_FILTER_MAP[categoryKey];
   if (!spec) return null;
   return (event) => {
-    // Category-based pills: exact category match only — never use keywords.
     if (spec.categories?.length) {
       const catLower = (event.category || '').toLowerCase();
       return spec.categories.some(c => c.toLowerCase() === catLower);
     }
-    // Keyword/type-only pills (Al aire libre, Jazz, Nacional, Festivales, etc.)
     const kwsLower = (event.keywords || []).map(k => k.toLowerCase());
     if (spec.keywords?.some(kw => kwsLower.includes(kw.toLowerCase()))) return true;
     const typeLower = (event.type || '').toLowerCase();
@@ -130,35 +117,6 @@ function SaveButton({ eventId }) {
   );
 }
 
-function buildFilters(subcategories) {
-  const subs = subcategories || FALLBACK_SUBCATEGORIES;
-  return {
-    Fecha: ['Ahora', 'Hoy', 'Esta semana', 'Este mes'],
-    ...Object.keys(subs).reduce((acc, cat) => { acc[cat] = subs[cat]; return acc; }, {}),
-  };
-}
-
-
-// Helper: compute date range from Spanish date tag
-function getDateRange(tag) {
-  const today = dayjs();
-  switch (tag) {
-    case 'Hoy':
-      return { startDate: today.format('YYYY-MM-DD'), endDate: today.format('YYYY-MM-DD') };
-    case 'Esta semana': {
-      const endOfWeek = today.endOf('week');
-      return { startDate: today.format('YYYY-MM-DD'), endDate: endOfWeek.format('YYYY-MM-DD') };
-    }
-    case 'Este mes': {
-      const endOfMonth = today.endOf('month');
-      return { startDate: today.format('YYYY-MM-DD'), endDate: endOfMonth.format('YYYY-MM-DD') };
-    }
-    default:
-      // ALL or Ahora: today to +1 year
-      return { startDate: today.format('YYYY-MM-DD'), endDate: today.add(1, 'year').format('YYYY-MM-DD') };
-  }
-}
-
 const EVENTS_PER_PAGE = 50;
 
 const CINE_BLUE = '#3B52D8';
@@ -177,11 +135,10 @@ export default function EventsScreen({ route }) {
     initialCategory ? new Set([initialCategory]) : new Set()
   );
   const [selectedTypes, setSelectedTypes] = useState(new Set());
-  const [selectedDateTag, setSelectedDateTag] = useState('Hoy');
+  const [selectedDate, setSelectedDate] = useState(dayjs());
   const [showDropdown, setShowDropdown] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
   const [visibleCount, setVisibleCount] = useState(EVENTS_PER_PAGE);
-  // Pill-based filters from SearchScreen navigation
   const [venueTypeFilter, setVenueTypeFilter] = useState(route?.params?.initialVenueType || null);
   const [pillTimeFilter, setPillTimeFilter] = useState(route?.params?.pillTimeFilter || null);
   const [pillKeywordFilter, setPillKeywordFilter] = useState(route?.params?.pillKeywordFilter || null);
@@ -189,7 +146,6 @@ export default function EventsScreen({ route }) {
 
   const navigation = useNavigation();
 
-  // Handle navigation params changes (when navigating back with new params)
   useEffect(() => {
     if (!route?.params) return;
     if (paramsApplied) return;
@@ -218,12 +174,12 @@ export default function EventsScreen({ route }) {
     }
     setParamsApplied(true);
   }, [route?.params]);
+
   const dragRef = useDragScroll();
   const { data: config } = useAppConfig();
   const badgeColors = getCategoryBadgeColors(config?.categories);
   const configSubcategories = getSubcategories(config?.categories);
   const SUBCATEGORIES = Object.keys(configSubcategories).length > 0 ? configSubcategories : FALLBACK_SUBCATEGORIES;
-  const FILTERS = buildFilters(SUBCATEGORIES);
   const categoryNames = getCategoryNames(config?.categories) || Object.keys(FALLBACK_SUBCATEGORIES);
 
   // Debounce search query (300ms)
@@ -238,13 +194,8 @@ export default function EventsScreen({ route }) {
     return () => clearTimeout(debounceRef.current);
   }, [searchQuery]);
 
-  // Build search params for backend.
-  // Pills with explicit categories (Teatro, Comedia, Cine) must use eventCategory
-  // so the backend runs Event.category == exact_match. Using keywordCategory for
-  // these would trigger keyword array-overlap, which matches music events whose
-  // names contain a venue name like "Teatro Coliseo".
   const searchParams = useMemo(() => {
-    const { startDate, endDate } = getDateRange(selectedDateTag);
+    const dateStr = selectedDate.format('YYYY-MM-DD');
     const pillSpec = pillCategoryKey ? PILL_CATEGORY_FILTER_MAP[pillCategoryKey] : null;
     const isCategoryPill = pillSpec?.categories?.length > 0;
     return {
@@ -252,19 +203,17 @@ export default function EventsScreen({ route }) {
       venueType: venueTypeFilter || undefined,
       keywordCategory: (pillCategoryKey && !isCategoryPill) ? pillCategoryKey : undefined,
       eventCategory: isCategoryPill ? pillSpec.categories[0] : undefined,
-      startDate,
-      endDate,
+      startDate: dateStr,
+      endDate: dateStr,
       returnType: 'both',
       limit: 500,
     };
-  }, [debouncedQuery, selectedDateTag, venueTypeFilter, pillCategoryKey]);
+  }, [debouncedQuery, selectedDate, venueTypeFilter, pillCategoryKey]);
 
-  // API data via backend search
   const { data: searchData, isLoading } = useSearch(searchParams);
   const venuesData = searchData?.venues ?? [];
   const eventsApiData = searchData?.events ?? [];
 
-  // Helper to toggle category
   const toggleCategory = (category) => {
     setSelectedCategories((prev) => {
       const next = new Set(prev);
@@ -277,11 +226,9 @@ export default function EventsScreen({ route }) {
     });
   };
 
-  // Helper to toggle type (with category context)
   const toggleType = (type, category = null) => {
     const cat = category || activeFilter;
-    const typeKey = cat && cat !== 'Fecha' ? `${cat}::${type}` : type;
-
+    const typeKey = cat ? `${cat}::${type}` : type;
     setSelectedTypes((prev) => {
       const next = new Set(prev);
       if (next.has(typeKey)) {
@@ -293,26 +240,15 @@ export default function EventsScreen({ route }) {
     });
   };
 
-  // Helper to toggle date tag
-  const toggleDateTag = (tag) => {
-    setSelectedDateTag((prev) => (prev === tag ? 'ALL' : tag));
-    setActiveFilter(null);
-  };
-
-  // Helper to remove a filter from chips
   const removeFilter = (filter) => {
-    if (FILTERS.Fecha.includes(filter)) {
-      setSelectedDateTag('ALL');
-    } else if (filter.includes(' · ')) {
+    if (filter.includes(' · ')) {
       const [cat, subcat] = filter.split(' · ');
       const typeKey = `${cat}::${subcat}`;
-
       setSelectedTypes((prev) => {
         const next = new Set(prev);
         next.delete(typeKey);
         return next;
       });
-
       setSelectedCategories((prev) => {
         const next = new Set(prev);
         next.delete(cat);
@@ -327,28 +263,23 @@ export default function EventsScreen({ route }) {
     }
   };
 
-  // Clear all filters
   const clearAllFilters = () => {
     setSelectedCategories(new Set());
     setSelectedTypes(new Set());
-    setSelectedDateTag('ALL');
+    setSelectedDate(dayjs());
     setPillCategoryKey(null);
     setPillKeywordFilter(null);
     setPillTimeFilter(null);
     setVenueTypeFilter(null);
   };
 
-  // Clear filters for the active filter category
   const clearActiveFilterCategory = () => {
-    if (activeFilter === 'Fecha') {
-      setSelectedDateTag('ALL');
-    } else if (activeFilter && SUBCATEGORIES[activeFilter]) {
+    if (activeFilter && SUBCATEGORIES[activeFilter]) {
       const subcats = SUBCATEGORIES[activeFilter];
       setSelectedTypes((prev) => {
         const next = new Set(prev);
         subcats.forEach(subcat => {
-          const typeKey = `${activeFilter}::${subcat}`;
-          next.delete(typeKey);
+          next.delete(`${activeFilter}::${subcat}`);
         });
         return next;
       });
@@ -361,7 +292,6 @@ export default function EventsScreen({ route }) {
     setActiveFilter(null);
   };
 
-  // Get all selected filters as an array for displaying chips
   const selectedFilters = useMemo(() => {
     const filterPills = [];
 
@@ -390,23 +320,15 @@ export default function EventsScreen({ route }) {
     return filterPills;
   }, [selectedCategories, selectedTypes]);
 
-  // === Lógica de filtros (client-side post-filtering) ===
   const filteredEventsRaw = useMemo(() => {
     let list = eventsApiData;
 
-    // "Ahora" (Live) filter — requires real-time client-side check
-    if (selectedDateTag === 'Ahora') {
-      list = list.filter((e) => isLive(e));
-    }
-
-    // Pill category filter — keyword-based matching against event.keywords/type/category
     if (pillCategoryKey) {
       const pillFilter = getCategoryFilter(pillCategoryKey);
       if (pillFilter) {
         list = list.filter(pillFilter);
       }
     } else {
-      // Standard category/type filter (filter icon row in EventsScreen)
       const hasCategoryFilters = selectedCategories.size > 0;
       const hasTypeFilters = selectedTypes.size > 0;
 
@@ -414,18 +336,14 @@ export default function EventsScreen({ route }) {
         list = list.filter((e) => {
           const evCatCanonical = normalizeCategory(e?.category);
           const evTypeNormalized = normalizeEventType(e?.type);
-
           const matchesCategory = hasCategoryFilters && selectedCategories.has(evCatCanonical);
-
           const eventTypeKey = `${evCatCanonical}::${evTypeNormalized}`;
           const matchesType = hasTypeFilters && selectedTypes.has(eventTypeKey);
-
           return matchesCategory || matchesType;
         });
       }
     }
 
-    // Evening filter (Sunsets pill: events starting at or after 18:00)
     if (pillTimeFilter === 'evening') {
       list = list.filter((e) => {
         if (!e.timeStart) return false;
@@ -434,7 +352,6 @@ export default function EventsScreen({ route }) {
       });
     }
 
-    // Legacy keyword filter (pillKeywordFilter param from SearchScreen)
     if (pillKeywordFilter && pillKeywordFilter.length > 0) {
       list = list.filter((e) => {
         const searchable = [e.title, e.description, ...(e.keywords || [])]
@@ -446,23 +363,19 @@ export default function EventsScreen({ route }) {
     }
 
     return list;
-  }, [eventsApiData, selectedDateTag, selectedCategories, selectedTypes,
+  }, [eventsApiData, selectedCategories, selectedTypes,
       pillTimeFilter, pillKeywordFilter, pillCategoryKey]);
 
-  // Collapse cinema showtimes into one row per movie+venue
   const filteredEvents = useMemo(
     () => groupCinemaEvents(filteredEventsRaw),
     [filteredEventsRaw],
   );
 
-  // Reset visible count whenever the filtered list changes (filter/search changed)
   useEffect(() => {
     setVisibleCount(EVENTS_PER_PAGE);
   }, [filteredEvents]);
 
-  // Check if a filter category is active
   const isFilterActive = (filterName) => {
-    if (filterName === 'Fecha') return selectedDateTag !== 'ALL';
     return selectedCategories.has(filterName) || Array.from(selectedTypes).some(key => key.startsWith(`${filterName}::`));
   };
 
@@ -498,7 +411,6 @@ export default function EventsScreen({ route }) {
           style={({ pressed }) => [styles.eventCard, styles.cinemaCard, pressed && { transform: [{ scale: 0.97 }] }]}
           onPress={() => navigation.navigate('EventDetail', { event: item })}
         >
-          {/* Poster thumbnail + info side by side */}
           <View style={styles.cinemaRow}>
             {item.image ? (
               <Image source={{ uri: item.image }} style={styles.cinemaPoster} resizeMode="cover" />
@@ -525,7 +437,6 @@ export default function EventsScreen({ route }) {
             </View>
           </View>
 
-          {/* Today's showtime pills */}
           {todaySchedule && (
             <View style={styles.cinemaSchedulePreview}>
               {todaySchedule.formats.slice(0, 3).map(({ format, times }) => (
@@ -543,7 +454,6 @@ export default function EventsScreen({ route }) {
             </View>
           )}
 
-          {/* Ver horarios CTA */}
           <TouchableOpacity
             style={styles.verHorariosRow}
             onPress={(e) => { e.stopPropagation?.(); setCinemaSheetGroup(item); }}
@@ -622,7 +532,6 @@ export default function EventsScreen({ route }) {
     );
   };
 
-  // Get chip category color for left accent
   const getChipCatColor = (filterStr) => {
     const cat = filterStr.split(' · ')[0];
     return categoryColors[cat] || null;
@@ -708,9 +617,26 @@ export default function EventsScreen({ route }) {
         )}
       </View>
 
-      {/* Filter icons row */}
+      {/* Date selector row */}
+      <View style={styles.dateSelectorRow}>
+        <DateSelector
+          currentDate={selectedDate}
+          onPrev={() => {
+            setSelectedDate(prev => prev.subtract(1, 'day'));
+            setVisibleCount(EVENTS_PER_PAGE);
+          }}
+          onNext={() => {
+            setSelectedDate(prev => prev.add(1, 'day'));
+            setVisibleCount(EVENTS_PER_PAGE);
+          }}
+          onPress={() => {}}
+          activeDateFilterDisplay={undefined}
+          selectedDays={[]}
+        />
+      </View>
+
+      {/* Category filter icons row */}
       <View style={styles.filtersRow}>
-        {renderFilterButton('Fecha', Calendar)}
         {renderFilterButton('Música', Music)}
         {renderFilterButton('Teatro', Drama)}
         {renderFilterButton('Comedia', Laugh)}
@@ -741,7 +667,7 @@ export default function EventsScreen({ route }) {
         </View>
       )}
 
-      {/* Filter options modal */}
+      {/* Filter options modal (categories only) */}
       <Modal transparent visible={!!activeFilter} animationType="fade">
         <TouchableOpacity
           style={styles.modalBackground}
@@ -749,7 +675,6 @@ export default function EventsScreen({ route }) {
           onPressOut={() => setActiveFilter(null)}
         >
           <GlassOverlay borderRadius={16} style={styles.modalContainer}>
-            {/* Clear button */}
             <TouchableOpacity
               onPress={clearActiveFilterCategory}
               style={styles.modalClearButton}
@@ -757,38 +682,10 @@ export default function EventsScreen({ route }) {
               <Text style={styles.modalClearButtonText}>Limpiar</Text>
             </TouchableOpacity>
 
-            {/* Fecha: single select */}
-            {activeFilter === 'Fecha' && (FILTERS[activeFilter] || []).map((option) => {
-              const selected = selectedDateTag === option;
-              return (
-                <TouchableOpacity
-                  key={option}
-                  onPress={() => toggleDateTag(option)}
-                >
-                  {selected ? (
-                    <LinearGradient
-                      colors={[colors.authGradientStart, colors.authGradientEnd]}
-                      style={styles.modalOption}
-                    >
-                      <Text style={styles.modalOptionText}>{option}</Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.modalOption}>
-                      <Text style={styles.modalOptionText}>{option}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-
-            {/* Category subcategories */}
-            {activeFilter && activeFilter !== 'Fecha' && (() => {
+            {activeFilter && SUBCATEGORIES[activeFilter] && (() => {
               const subcats = SUBCATEGORIES[activeFilter];
-              if (!subcats) return null;
-
               return (
                 <>
-                  {/* Category toggle */}
                   <TouchableOpacity onPress={() => toggleCategory(activeFilter)}>
                     {selectedCategories.has(activeFilter) ? (
                       <LinearGradient
@@ -804,7 +701,6 @@ export default function EventsScreen({ route }) {
                     )}
                   </TouchableOpacity>
 
-                  {/* Subcategories */}
                   {subcats.map((option) => {
                     const typeKey = `${activeFilter}::${option}`;
                     const selected = selectedTypes.has(typeKey);
@@ -845,8 +741,8 @@ export default function EventsScreen({ route }) {
       {/* Empty state */}
       {!isLoading && filteredEvents.length === 0 && (
         <GlassOverlay borderRadius={12} style={styles.emptyState}>
-          <Text style={styles.emptyTitle}>No hay eventos desde hoy en adelante</Text>
-          <Text style={styles.emptySubtitle}>Prueba quitando algunos filtros o busca de nuevo.</Text>
+          <Text style={styles.emptyTitle}>No hay eventos para este día</Text>
+          <Text style={styles.emptySubtitle}>Prueba otro día o quita algunos filtros.</Text>
         </GlassOverlay>
       )}
 
@@ -931,11 +827,18 @@ const styles = StyleSheet.create({
     marginLeft: 6,
   },
 
+  // Date selector
+  dateSelectorRow: {
+    marginTop: 14,
+    marginBottom: 4,
+    alignItems: 'flex-start',
+  },
+
   // Filter buttons
   filtersRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 14,
+    marginTop: 8,
     marginBottom: 12,
   },
   filterButton: {
