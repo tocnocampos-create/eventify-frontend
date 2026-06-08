@@ -17,7 +17,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
 import GlassOverlay from '../components/home/GlassOverlay';
-import DateSelector from '../components/home/DateSelector';
+import DayPickerModal from '../components/home/DayPickerModal';
 import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import { useSearch } from '../hooks/useSearch';
 import useDragScroll from '../hooks/useDragScroll';
@@ -135,7 +135,8 @@ export default function EventsScreen({ route }) {
     initialCategory ? new Set([initialCategory]) : new Set()
   );
   const [selectedTypes, setSelectedTypes] = useState(new Set());
-  const [selectedDate, setSelectedDate] = useState(dayjs());
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [selectedDays, setSelectedDays] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
   const [visibleCount, setVisibleCount] = useState(EVENTS_PER_PAGE);
@@ -195,20 +196,24 @@ export default function EventsScreen({ route }) {
   }, [searchQuery]);
 
   const searchParams = useMemo(() => {
-    const dateStr = selectedDate.format('YYYY-MM-DD');
     const pillSpec = pillCategoryKey ? PILL_CATEGORY_FILTER_MAP[pillCategoryKey] : null;
     const isCategoryPill = pillSpec?.categories?.length > 0;
+    const today = dayjs().format('YYYY-MM-DD');
+    const startDate = selectedDays.length > 0 ? selectedDays[0] : today;
+    const endDate = selectedDays.length > 1 ? selectedDays[selectedDays.length - 1]
+                  : selectedDays.length === 1 ? selectedDays[0]
+                  : dayjs().add(1, 'year').format('YYYY-MM-DD');
     return {
       q: debouncedQuery || undefined,
       venueType: venueTypeFilter || undefined,
       keywordCategory: (pillCategoryKey && !isCategoryPill) ? pillCategoryKey : undefined,
       eventCategory: isCategoryPill ? pillSpec.categories[0] : undefined,
-      startDate: dateStr,
-      endDate: dateStr,
+      startDate,
+      endDate,
       returnType: 'both',
       limit: 500,
     };
-  }, [debouncedQuery, selectedDate, venueTypeFilter, pillCategoryKey]);
+  }, [debouncedQuery, selectedDays, venueTypeFilter, pillCategoryKey]);
 
   const { data: searchData, isLoading } = useSearch(searchParams);
   const venuesData = searchData?.venues ?? [];
@@ -266,7 +271,7 @@ export default function EventsScreen({ route }) {
   const clearAllFilters = () => {
     setSelectedCategories(new Set());
     setSelectedTypes(new Set());
-    setSelectedDate(dayjs());
+    setSelectedDays([]);
     setPillCategoryKey(null);
     setPillKeywordFilter(null);
     setPillTimeFilter(null);
@@ -617,26 +622,25 @@ export default function EventsScreen({ route }) {
         )}
       </View>
 
-      {/* Date selector row */}
-      <View style={styles.dateSelectorRow}>
-        <DateSelector
-          currentDate={selectedDate}
-          onPrev={() => {
-            setSelectedDate(prev => prev.subtract(1, 'day'));
-            setVisibleCount(EVENTS_PER_PAGE);
-          }}
-          onNext={() => {
-            setSelectedDate(prev => prev.add(1, 'day'));
-            setVisibleCount(EVENTS_PER_PAGE);
-          }}
-          onPress={() => {}}
-          activeDateFilterDisplay={undefined}
-          selectedDays={[]}
-        />
-      </View>
-
       {/* Category filter icons row */}
       <View style={styles.filtersRow}>
+        <TouchableOpacity
+          onPress={() => setShowCalendar(true)}
+          activeOpacity={0.7}
+        >
+          {selectedDays.length > 0 ? (
+            <LinearGradient
+              colors={[colors.authGradientStart, colors.authGradientEnd]}
+              style={styles.filterButton}
+            >
+              <Calendar color="#fff" size={20} />
+            </LinearGradient>
+          ) : (
+            <View style={styles.filterButton}>
+              <Calendar color={colors.textDim} size={20} />
+            </View>
+          )}
+        </TouchableOpacity>
         {renderFilterButton('Música', Music)}
         {renderFilterButton('Teatro', Drama)}
         {renderFilterButton('Comedia', Laugh)}
@@ -767,6 +771,19 @@ export default function EventsScreen({ route }) {
       />
       </View>
 
+      {/* Date picker modal */}
+      <DayPickerModal
+        visible={showCalendar}
+        selectedDays={selectedDays}
+        currentDate={dayjs()}
+        onClose={() => setShowCalendar(false)}
+        onApply={(days) => {
+          setSelectedDays(days);
+          setShowCalendar(false);
+          setVisibleCount(EVENTS_PER_PAGE);
+        }}
+      />
+
       {/* Cinema showtime sheet */}
       <CinemaShowtimeSheet
         group={cinemaSheetGroup}
@@ -825,13 +842,6 @@ const styles = StyleSheet.create({
   clearButton: {
     padding: 4,
     marginLeft: 6,
-  },
-
-  // Date selector
-  dateSelectorRow: {
-    marginTop: 14,
-    marginBottom: 4,
-    alignItems: 'flex-start',
   },
 
   // Filter buttons
