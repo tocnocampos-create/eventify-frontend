@@ -12,6 +12,7 @@ import {
   Modal,
   ScrollView,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -117,8 +118,6 @@ function SaveButton({ eventId }) {
   );
 }
 
-const EVENTS_PER_PAGE = 50;
-
 const CINE_BLUE = '#3B52D8';
 const CINE_LIGHT = 'rgba(59, 82, 216, 0.15)';
 const CINE_BORDER = 'rgba(59, 82, 216, 0.3)';
@@ -139,7 +138,7 @@ export default function EventsScreen({ route }) {
   const [selectedDays, setSelectedDays] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [paramsApplied, setParamsApplied] = useState(false);
-  const [visibleCount, setVisibleCount] = useState(EVENTS_PER_PAGE);
+  const [infiniteEndDate, setInfiniteEndDate] = useState(dayjs().add(30, 'day'));
   const [venueTypeFilter, setVenueTypeFilter] = useState(route?.params?.initialVenueType || null);
   const [pillTimeFilter, setPillTimeFilter] = useState(route?.params?.pillTimeFilter || null);
   const [pillKeywordFilter, setPillKeywordFilter] = useState(route?.params?.pillKeywordFilter || null);
@@ -219,7 +218,7 @@ export default function EventsScreen({ route }) {
     const startDate = selectedDays.length > 0 ? selectedDays[0] : today;
     const endDate = selectedDays.length > 1 ? selectedDays[selectedDays.length - 1]
                   : selectedDays.length === 1 ? selectedDays[0]
-                  : dayjs().add(1, 'year').format('YYYY-MM-DD');
+                  : infiniteEndDate.format('YYYY-MM-DD');
     return {
       q: debouncedQuery || undefined,
       venueType: venueTypeFilter || undefined,
@@ -230,9 +229,9 @@ export default function EventsScreen({ route }) {
       returnType: 'both',
       limit: 500,
     };
-  }, [debouncedQuery, selectedDays, venueTypeFilter, pillCategoryKey]);
+  }, [debouncedQuery, selectedDays, venueTypeFilter, pillCategoryKey, infiniteEndDate]);
 
-  const { data: searchData, isLoading } = useSearch(searchParams);
+  const { data: searchData, isLoading, isFetching } = useSearch(searchParams);
   const venuesData = searchData?.venues ?? [];
   const eventsApiData = searchData?.events ?? [];
 
@@ -394,8 +393,15 @@ export default function EventsScreen({ route }) {
   );
 
   useEffect(() => {
-    setVisibleCount(EVENTS_PER_PAGE);
-  }, [filteredEvents]);
+    if (selectedDays.length === 0) {
+      setInfiniteEndDate(dayjs().add(30, 'day'));
+    }
+  }, [selectedDays]);
+
+  const loadMoreDays = React.useCallback(() => {
+    if (isFetching || selectedDays.length > 0) return;
+    setInfiniteEndDate((prev) => prev.add(30, 'day'));
+  }, [isFetching, selectedDays.length]);
 
   const isFilterActive = (filterName) => {
     return selectedCategories.has(filterName) || Array.from(selectedTypes).some(key => key.startsWith(`${filterName}::`));
@@ -769,20 +775,18 @@ export default function EventsScreen({ route }) {
 
       {/* Event list */}
       <FlatList
-        data={filteredEvents.slice(0, visibleCount)}
+        data={filteredEvents}
         renderItem={renderEvent}
         keyExtractor={(item) => `${item.id}`}
         contentContainerStyle={{ paddingBottom: 20 }}
         style={{ flex: 1 }}
+        onEndReached={loadMoreDays}
+        onEndReachedThreshold={0.3}
         ListFooterComponent={
-          visibleCount < filteredEvents.length ? (
-            <TouchableOpacity
-              style={styles.loadMoreButton}
-              onPress={() => setVisibleCount((c) => c + EVENTS_PER_PAGE)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.loadMoreText}>Cargar más</Text>
-            </TouchableOpacity>
+          isFetching && selectedDays.length === 0 ? (
+            <View style={styles.loadingFooter}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
           ) : null
         }
       />
@@ -797,7 +801,6 @@ export default function EventsScreen({ route }) {
         onApply={(days) => {
           setSelectedDays(days);
           setShowCalendar(false);
-          setVisibleCount(EVENTS_PER_PAGE);
         }}
       />
 
@@ -812,20 +815,9 @@ export default function EventsScreen({ route }) {
 }
 
 const styles = StyleSheet.create({
-  loadMoreButton: {
-    alignSelf: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 32,
-    paddingVertical: 12,
-    borderRadius: 24,
-    backgroundColor: 'rgba(159, 123, 255, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(159, 123, 255, 0.4)',
-  },
-  loadMoreText: {
-    color: '#BFA0FF',
-    fontSize: 14,
-    fontFamily: 'Outfit_600SemiBold',
+  loadingFooter: {
+    alignItems: 'center',
+    paddingVertical: 20,
   },
   container: {
     flex: 1,
