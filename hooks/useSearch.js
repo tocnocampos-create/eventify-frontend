@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { fetchSearch } from '../api/search';
-import { transformEvent, transformVenue } from '../api/transformers';
+import { fetchSearch } from '../services/search';
+import { transformEvent, transformVenue } from '../services/transformers';
 import { assignDateTags } from '../utils/filtering';
 
 /**
@@ -26,5 +26,6 @@ export function useSearch(params = {}) {
       return { venues, events, meta: raw.meta || null };
     },
     enabled: hasFilter,
+    placeholderData: keepPreviousData,
   });
 }

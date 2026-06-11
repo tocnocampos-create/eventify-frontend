@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { fetchAllVenues, fetchVenuesByType } from '../api/venues';
-import { fetchAllEvents } from '../api/events';
-import { fetchNeighborhoods } from '../api/neighborhoods';
-import { transformVenue, transformEvent, transformNeighborhood } from '../api/transformers';
+import { fetchAllVenues, fetchVenuesByType } from '../services/venues';
+import { fetchAllEvents } from '../services/events';
+import { fetchNeighborhoods } from '../services/neighborhoods';
+import { transformVenue, transformEvent, transformNeighborhood } from '../services/transformers';
 import { assignDateTags } from '../utils/filtering';
 
 export function useVenues() {

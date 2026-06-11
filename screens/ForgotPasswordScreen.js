@@ -15,7 +15,7 @@ import colors from '../theme/colors';
 import GlowingBackground from '../components/auth/GlowingBackground';
 import StyledInput from '../components/auth/StyledInput';
 import GradientButton from '../components/auth/GradientButton';
-import { forgotPasswordApi, resetPasswordApi } from '../api/auth';
+import { forgotPasswordApi, resetPasswordApi } from '../services/auth';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');

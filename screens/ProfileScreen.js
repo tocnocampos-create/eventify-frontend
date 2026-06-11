@@ -31,7 +31,7 @@ import InterestSelector from '../components/InterestSelector';
 import colors from '../theme/colors';
 import { useAuth } from '../contexts/AuthContext';
 import { useUserInterests, useSetInterests, useUserSettings, useUpdateSettings } from '../hooks/useUserPreferences';
-import { submitFeedback } from '../api/feedback';
+import { submitFeedback } from '../services/feedback';
 import { useAppConfig, getCategoryColors, getCategoryIcons } from '../hooks/useAppConfig';
 
 const AVATAR_COLORS = [

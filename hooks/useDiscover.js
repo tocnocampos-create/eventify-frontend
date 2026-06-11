@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { fetchDiscover } from '../api/discover';
-import { transformEvent, transformVenue } from '../api/transformers';
+import { fetchDiscover } from '../services/discover';
+import { transformEvent, transformVenue } from '../services/transformers';
 import { assignDateTags } from '../utils/filtering';
 import { useAuth } from '../contexts/AuthContext';
 

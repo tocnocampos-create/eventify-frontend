@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { createReview } from '../api/reviews';
+import { createReview } from '../services/reviews';
 
 export function useCreateReview({ venueId, eventId } = {}) {
   const queryClient = useQueryClient();

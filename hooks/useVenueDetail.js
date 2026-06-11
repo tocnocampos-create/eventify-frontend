@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchVenueDetail, fetchAllVenues } from '../api/venues';
-import { transformVenueDetail } from '../api/transformers';
+import { fetchVenueDetail, fetchAllVenues } from '../services/venues';
+import { transformVenueDetail } from '../services/transformers';
 
 /**
  * Fetches full venue detail (venue + events + reviews).

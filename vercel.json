@@ -3,5 +3,8 @@
   "outputDirectory": "dist",
   "installCommand": "npm install",
   "framework": null,
-  "functions": {}
+  "functions": {},
+  "routes": [
+    { "src": "/(.*)", "dest": "/index.html" }
+  ]
 }

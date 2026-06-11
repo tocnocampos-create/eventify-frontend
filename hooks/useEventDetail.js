@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchEventDetail } from '../api/events';
-import { transformEventDetail } from '../api/transformers';
+import { fetchEventDetail } from '../services/events';
+import { transformEventDetail } from '../services/transformers';
 
 export function useEventDetail(eventId) {
   return useQuery({

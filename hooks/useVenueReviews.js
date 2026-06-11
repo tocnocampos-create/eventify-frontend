@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { fetchVenueReviews } from '../api/reviews';
-import { transformReview } from '../api/transformers';
+import { fetchVenueReviews } from '../services/reviews';
+import { transformReview } from '../services/transformers';
 
 /**
  * Fetch reviews for a venue from GET /api/reviews?venue_id=:id.

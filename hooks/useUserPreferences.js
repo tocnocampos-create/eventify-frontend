@@ -19,8 +19,8 @@ import {
   saveVenueVisit,
   fetchVenueVisits,
   deleteVenueVisit,
-} from '../api/userPreferences';
-import { transformVenue } from '../api/transformers';
+} from '../services/userPreferences';
+import { transformVenue } from '../services/transformers';
 
 // ── Venue follows ─────────────────────────────────────────────
 
