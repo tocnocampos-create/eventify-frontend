@@ -21,7 +21,7 @@ import DayPickerModal from '../components/home/DayPickerModal';
 import CinemaShowtimeSheet from '../components/CinemaShowtimeSheet';
 import { useSearch } from '../hooks/useSearch';
 import useDragScroll from '../hooks/useDragScroll';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { groupCinemaEvents, getCinemaSchedule, formatScheduleDate } from '../utils/cinemaGrouping';
 import {
   Calendar,
@@ -146,6 +146,23 @@ export default function EventsScreen({ route }) {
   const [pillCategoryKey, setPillCategoryKey] = useState(route?.params?.pillCategoryKey || null);
 
   const navigation = useNavigation();
+
+  // Persist filter state so it survives returning from EventDetail (native stack detaches previous screens)
+  const filterStateRef = useRef(null);
+
+  useEffect(() => {
+    filterStateRef.current = { selectedCategories, selectedTypes, selectedDays };
+  }, [selectedCategories, selectedTypes, selectedDays]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      const saved = filterStateRef.current;
+      if (!saved) return;
+      setSelectedCategories(new Set(saved.selectedCategories));
+      setSelectedTypes(new Set(saved.selectedTypes));
+      setSelectedDays([...saved.selectedDays]);
+    }, [])
+  );
 
   useEffect(() => {
     if (!route?.params) return;
