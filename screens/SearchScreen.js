@@ -13,6 +13,7 @@ import {
   Platform,
   KeyboardAvoidingView,
   Animated,
+  Easing,
   Linking,
   Dimensions,
   Image,
@@ -115,6 +116,9 @@ export default function SearchScreen() {
   const SCREEN_HEIGHT = Dimensions.get('window').height;
   const blinkAnim = useRef(new Animated.Value(1)).current;
   const bounceAnim = useRef(new Animated.Value(0)).current;
+  const eviFloatAnim = useRef(new Animated.Value(0)).current;
+  const eviScaleAnim = useRef(new Animated.Value(0.8)).current;
+  const eviWiggleAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     const blink = Animated.loop(
@@ -139,6 +143,56 @@ export default function SearchScreen() {
       return () => bounce.stop();
     } else {
       bounceAnim.setValue(0);
+    }
+  }, [aiLoading]);
+
+  useEffect(() => {
+    if (aiModalVisible) {
+      eviScaleAnim.setValue(0.8);
+      eviFloatAnim.setValue(0);
+      const startEviFloat = () => {
+        Animated.loop(
+          Animated.sequence([
+            Animated.timing(eviFloatAnim, {
+              toValue: -10,
+              duration: 1800,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+            Animated.timing(eviFloatAnim, {
+              toValue: 0,
+              duration: 1800,
+              useNativeDriver: true,
+              easing: Easing.inOut(Easing.sin),
+            }),
+          ])
+        ).start();
+      };
+      Animated.spring(eviScaleAnim, {
+        toValue: 1,
+        friction: 4,
+        tension: 80,
+        useNativeDriver: true,
+      }).start(() => startEviFloat());
+    } else {
+      eviScaleAnim.setValue(0.8);
+      eviFloatAnim.setValue(0);
+    }
+  }, [aiModalVisible]);
+
+  useEffect(() => {
+    if (aiLoading) {
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(eviWiggleAnim, { toValue: -8, duration: 120, useNativeDriver: true }),
+          Animated.timing(eviWiggleAnim, { toValue: 8, duration: 120, useNativeDriver: true }),
+          Animated.timing(eviWiggleAnim, { toValue: -8, duration: 120, useNativeDriver: true }),
+          Animated.timing(eviWiggleAnim, { toValue: 0, duration: 120, useNativeDriver: true }),
+          Animated.delay(600),
+        ])
+      ).start();
+    } else {
+      eviWiggleAnim.setValue(0);
     }
   }, [aiLoading]);
 
@@ -841,7 +895,16 @@ export default function SearchScreen() {
             >
               {/* Evi Header */}
               <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
-                <EviCharacter />
+                <Animated.View style={{
+                  alignItems: 'center',
+                  transform: [
+                    { translateY: eviFloatAnim },
+                    { translateX: eviWiggleAnim },
+                    { scale: eviScaleAnim },
+                  ],
+                }}>
+                  <EviCharacter />
+                </Animated.View>
                 <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 18, color: colors.primary, marginTop: 8 }}>
                   Hola, soy Evi ✨
                 </Text>
