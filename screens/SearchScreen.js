@@ -15,6 +15,7 @@ import {
   Animated,
   Linking,
   Dimensions,
+  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
@@ -68,33 +69,13 @@ const SEARCH_CATEGORY_MAP = {
   'Ferias':        { pillCategoryKey: 'Ferias' },
 };
 
-const EviCharacter = () => {
-  const { Svg, Path, Ellipse, Defs, RadialGradient, Stop } = require('react-native-svg');
-  return (
-    <Svg width="100" height="120" viewBox="0 0 340 400">
-      <Defs>
-        <RadialGradient id="pg" cx="40%" cy="35%" r="60%">
-          <Stop offset="0%" stopColor="#C084FC"/>
-          <Stop offset="100%" stopColor="#7C3AED"/>
-        </RadialGradient>
-        <RadialGradient id="fg" cx="45%" cy="40%" r="55%">
-          <Stop offset="0%" stopColor="#FFFFFF"/>
-          <Stop offset="100%" stopColor="#F3E8FF"/>
-        </RadialGradient>
-      </Defs>
-      <Ellipse cx="170" cy="375" rx="60" ry="12" fill="#C084FC" opacity="0.3"/>
-      <Path d="M170 20 C95 20 45 80 45 155 C45 230 115 295 148 325 C158 335 170 345 170 345 C170 345 182 335 192 325 C225 295 295 230 295 155 C295 80 245 20 170 20 Z" fill="url(#pg)"/>
-      <Ellipse cx="170" cy="158" rx="78" ry="78" fill="url(#fg)"/>
-      <Ellipse cx="148" cy="152" rx="16" ry="18" fill="#4C1D95"/>
-      <Ellipse cx="192" cy="152" rx="16" ry="18" fill="#4C1D95"/>
-      <Ellipse cx="143" cy="147" rx="6" ry="7" fill="white" opacity="0.9"/>
-      <Ellipse cx="187" cy="147" rx="6" ry="7" fill="white" opacity="0.9"/>
-      <Path d="M155 180 Q170 196 185 180" stroke="#7C3AED" strokeWidth="3" fill="none" strokeLinecap="round"/>
-      <Ellipse cx="132" cy="175" rx="10" ry="7" fill="#FDA4AF" opacity="0.55"/>
-      <Ellipse cx="208" cy="175" rx="10" ry="7" fill="#FDA4AF" opacity="0.55"/>
-    </Svg>
-  );
-};
+const EviCharacter = () => (
+  <Image
+    source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDM0MCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBnIiBjeD0iNDAlIiBjeT0iMzUlIiByPSI2MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzA4NEZDIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdDM0FFRCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPGVsbGlwc2UgY3g9IjE3MCIgY3k9IjM3NSIgcng9IjYwIiByeT0iMTIiIGZpbGw9IiNDMDg0RkMiIG9wYWNpdHk9IjAuMyIvPgogIDxwYXRoIGQ9Ik0xNzAgMjAgQzk1IDIwIDQ1IDgwIDQ1IDE1NSBDNDUgMjMwIDExNSAyOTUgMTQ4IDMyNSBDMTU4IDMzNSAxNzAgMzQ1IDE3MCAzNDUgQzE3MCAzNDUgMTgyIDMzNSAxOTIgMzI1IEMyMjUgMjk1IDI5NSAyMzAgMjk1IDE1NSBDMjk1IDgwIDI0NSAyMCAxNzAgMjAgWiIgZmlsbD0idXJsKCNwZykiLz4KICA8ZWxsaXBzZSBjeD0iMTcwIiBjeT0iMTU4IiByeD0iNzgiIHJ5PSI3OCIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQ4IiBjeT0iMTUyIiByeD0iMTYiIHJ5PSIxOCIgZmlsbD0iIzRDMUQ5NSIvPgogIDxlbGxpcHNlIGN4PSIxOTIiIGN5PSIxNTIiIHJ4PSIxNiIgcnk9IjE4IiBmaWxsPSIjNEMxRDk1Ii8+CiAgPGVsbGlwc2UgY3g9IjE0MyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPGVsbGlwc2UgY3g9IjE4NyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPHBhdGggZD0iTTE1NSAxODAgUTE3MCAxOTYgMTg1IDE4MCIgc3Ryb2tlPSIjN0MzQUVEIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNGREE0QUYiIG9wYWNpdHk9IjAuNTUiLz4KICA8ZWxsaXBzZSBjeD0iMjA4IiBjeT0iMTc1IiByeD0iMTAiIHJ5PSI3IiBmaWxsPSIjRkRBNEFGIiBvcGFjaXR5PSIwLjU1Ii8+Cjwvc3ZnPg==' }}
+    style={{ width: 100, height: 120 }}
+    resizeMode="contain"
+  />
+);
 
 const AI_CHIPS = [
   '🎵 Jazz en vivo',
@@ -853,7 +834,7 @@ export default function SearchScreen() {
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.aiScrollContent}
+              contentContainerStyle={{ flexGrow: 1, paddingBottom: 40 }}
             >
               {/* Evi Header */}
               <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
