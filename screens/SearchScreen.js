@@ -12,7 +12,9 @@ import {
   RefreshControl,
   Platform,
   KeyboardAvoidingView,
-  FlatList,
+  Animated,
+  Linking,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
@@ -33,6 +35,7 @@ import { TAB_BAR_HEIGHT } from '../components/FloatingTabBar';
 import { fetchAISearch } from '../services/search';
 import { transformEvent, transformVenue } from '../services/transformers';
 import { assignDateTags } from '../utils/filtering';
+import { formatEventDateTime, getEventPriceLabel } from '../utils/mapHelpers';
 import { useDiscover } from '../hooks/useDiscover';
 import { useVenues, useEvents } from '../hooks/useMapData';
 import { useSearch } from '../hooks/useSearch';
@@ -98,6 +101,37 @@ export default function SearchScreen() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiMessage, setAiMessage] = useState('');
   const [aiResults, setAiResults] = useState([]);
+
+  // Animations
+  const SCREEN_HEIGHT = Dimensions.get('window').height;
+  const blinkAnim = useRef(new Animated.Value(1)).current;
+  const bounceAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+        Animated.timing(blinkAnim, { toValue: 1, duration: 500, useNativeDriver: true }),
+      ])
+    );
+    blink.start();
+    return () => blink.stop();
+  }, []);
+
+  useEffect(() => {
+    if (aiLoading) {
+      const bounce = Animated.loop(
+        Animated.sequence([
+          Animated.timing(bounceAnim, { toValue: -8, duration: 300, useNativeDriver: true }),
+          Animated.timing(bounceAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ])
+      );
+      bounce.start();
+      return () => bounce.stop();
+    } else {
+      bounceAnim.setValue(0);
+    }
+  }, [aiLoading]);
 
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
@@ -318,7 +352,8 @@ export default function SearchScreen() {
         (data.events || []).map(transformEventWithInlineVenue)
       );
       setAiResults(transformed);
-    } catch {
+    } catch (err) {
+      console.error('[handleAISearch]', err?.message);
       setAiMessage('Algo salió mal. Intenta de nuevo.');
     } finally {
       setAiLoading(false);
@@ -763,7 +798,7 @@ export default function SearchScreen() {
           colors={[colors.authGradientStart, colors.authGradientEnd]}
           style={styles.fabGradient}
         >
-          <Sparkles size={22} color={colors.text} />
+          <Sparkles size={24} color={colors.text} />
         </LinearGradient>
       </TouchableOpacity>
 
@@ -777,27 +812,31 @@ export default function SearchScreen() {
         <View style={styles.aiOverlay}>
           <KeyboardAvoidingView
             behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={styles.aiSheet}
+            style={[styles.aiSheet, { height: SCREEN_HEIGHT * 0.92 }]}
           >
             {/* Handle bar */}
             <View style={styles.aiHandle} />
 
-            {/* Header */}
-            <View style={styles.aiHeader}>
-              <View>
-                <Text style={styles.aiTitle}>¿Qué tienes en mente?</Text>
-                <Text style={styles.aiSubtitle}>Describe tu plan perfecto</Text>
-              </View>
-              <TouchableOpacity onPress={handleAiModalClose} style={styles.aiClose}>
-                <X size={20} color={colors.textDim} />
-              </TouchableOpacity>
-            </View>
+            {/* Close button */}
+            <TouchableOpacity onPress={handleAiModalClose} style={styles.aiCloseBtn}>
+              <X size={20} color={colors.textDim} />
+            </TouchableOpacity>
 
             <ScrollView
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
               contentContainerStyle={styles.aiScrollContent}
             >
+              {/* Evi Header */}
+              <View style={styles.eviHeader}>
+                <Text style={styles.eviEmoji}>📍</Text>
+                <Text style={styles.eviName}>Hola, soy Evi ✨</Text>
+                <View style={styles.eviSubtitleRow}>
+                  <Text style={styles.eviSubtitle}>¿Qué plan tienes en mente?</Text>
+                  <Animated.Text style={[styles.eviCursor, { opacity: blinkAnim }]}>|</Animated.Text>
+                </View>
+              </View>
+
               {/* Input */}
               <TextInput
                 style={styles.aiInput}
@@ -807,12 +846,17 @@ export default function SearchScreen() {
                 value={aiInput}
                 onChangeText={setAiInput}
                 autoFocus
+                textContentType="none"
+                autoComplete="off"
+                importantForAutofill="no"
+                keyboardType="default"
               />
 
               {/* Suggestion chips */}
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
                 style={styles.chipsScroll}
                 contentContainerStyle={styles.chipsContent}
               >
@@ -828,47 +872,87 @@ export default function SearchScreen() {
                 ))}
               </ScrollView>
 
-              {/* Send button */}
-              <Pressable
-                onPress={handleAISearch}
-                disabled={!aiInput.trim() || aiLoading}
-                style={{ opacity: !aiInput.trim() || aiLoading ? 0.5 : 1 }}
-              >
-                <LinearGradient
-                  colors={[colors.authGradientStart, colors.authGradientEnd]}
-                  style={styles.aiSendButton}
+              {/* Send button OR Evi loading state */}
+              {aiLoading ? (
+                <View style={styles.eviLoading}>
+                  <Animated.Text style={[styles.eviLoadingEmoji, { transform: [{ translateY: bounceAnim }] }]}>
+                    📍
+                  </Animated.Text>
+                  <Text style={styles.eviLoadingText}>Evi está buscando tu plan perfecto...</Text>
+                </View>
+              ) : (
+                <Pressable
+                  onPress={handleAISearch}
+                  disabled={!aiInput.trim()}
+                  style={{ opacity: !aiInput.trim() ? 0.5 : 1 }}
                 >
-                  {aiLoading ? (
-                    <ActivityIndicator size="small" color={colors.text} />
-                  ) : (
+                  <LinearGradient
+                    colors={[colors.authGradientStart, colors.authGradientEnd]}
+                    style={styles.aiSendButton}
+                  >
                     <Text style={styles.aiSendText}>Buscar con IA ✨</Text>
-                  )}
-                </LinearGradient>
-              </Pressable>
-
-              {/* Results */}
-              {!!aiMessage && (
-                <Text style={styles.aiMessage}>{aiMessage}</Text>
+                  </LinearGradient>
+                </Pressable>
               )}
-              {aiResults.length > 0 && (
-                <FlatList
-                  data={aiResults}
-                  keyExtractor={(item) => String(item.id)}
-                  horizontal
-                  showsHorizontalScrollIndicator={false}
-                  contentContainerStyle={styles.aiResultsList}
-                  renderItem={({ item }) => (
-                    <DiscoverEventCard
-                      event={item}
-                      badgeColors={badgeColors}
-                      onPress={() => {
-                        handleAiModalClose();
-                        navigateToEvent(item);
-                      }}
-                    />
+
+              {/* Results panorama */}
+              {!!aiMessage && (
+                <>
+                  <View style={styles.aiMessageBlock}>
+                    <Text style={styles.aiMessageText}>📍 {aiMessage}</Text>
+                    {aiResults.length > 0 && (
+                      <Text style={styles.aiPlanLabel}>Tu plan incluye:</Text>
+                    )}
+                  </View>
+
+                  {aiResults.map((event, idx) => (
+                    <View key={event.id ?? idx}>
+                      <TouchableOpacity
+                        style={styles.aiResultCard}
+                        activeOpacity={0.85}
+                        onPress={() => { handleAiModalClose(); navigateToEvent(event); }}
+                      >
+                        {!!event.category && (
+                          <View style={[styles.aiResultBadge, { backgroundColor: badgeColors[event.category] || 'rgba(159,123,255,0.2)' }]}>
+                            <Text style={styles.aiResultBadgeText}>{event.category}</Text>
+                          </View>
+                        )}
+                        <Text style={styles.aiResultTitle} numberOfLines={2}>{event.title}</Text>
+                        <Text style={styles.aiResultMeta}>{formatEventDateTime(event)}</Text>
+                        {!!event.location && (
+                          <Text style={styles.aiResultMeta} numberOfLines={1}>{event.location}</Text>
+                        )}
+                        {!!getEventPriceLabel(event) && (
+                          <Text style={styles.aiResultPrice}>{getEventPriceLabel(event)}</Text>
+                        )}
+                        <TouchableOpacity
+                          style={styles.aiMapsRow}
+                          onPress={() => Linking.openURL(
+                            `https://maps.google.com/?q=${encodeURIComponent((event.venueName || event.location || '') + ' Santiago')}`
+                          )}
+                        >
+                          <Text style={styles.aiMapsText}>📍 Cómo llegar</Text>
+                        </TouchableOpacity>
+                      </TouchableOpacity>
+                      {idx < aiResults.length - 1 && <View style={styles.aiResultDivider} />}
+                    </View>
+                  ))}
+
+                  {/* Budget summary */}
+                  {aiResults.length > 0 && (
+                    <View style={styles.aiBudget}>
+                      <Text style={styles.aiBudgetTitle}>💰 Presupuesto estimado</Text>
+                      <Text style={styles.aiBudgetAmount}>
+                        {(() => {
+                          const total = aiResults.reduce((s, e) => s + (e.price || 0), 0);
+                          return total > 0
+                            ? `Desde $${total.toLocaleString('es-CL')} por persona`
+                            : 'Entrada liberada';
+                        })()}
+                      </Text>
+                    </View>
                   )}
-                  scrollEnabled
-                />
+                </>
               )}
             </ScrollView>
           </KeyboardAvoidingView>
@@ -1121,41 +1205,41 @@ const styles = StyleSheet.create({
   // AI FAB
   fab: {
     position: 'absolute',
-    bottom: TAB_BAR_HEIGHT + 16,
+    bottom: TAB_BAR_HEIGHT + 20,
     left: 20,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     overflow: 'hidden',
+    zIndex: 999,
     ...Platform.select({
-      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10 },
-      android: { elevation: 8 },
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12 },
+      android: { elevation: 10 },
       web: { boxShadow: `0 4px 20px ${colors.primary}66` },
     }),
   },
   fabGradient: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // AI Modal
+  // AI Modal overlay + sheet
   aiOverlay: {
     flex: 1,
     justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.55)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
   },
   aiSheet: {
     backgroundColor: colors.bg,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
-    maxHeight: '90%',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     borderTopWidth: 1,
     borderTopColor: colors.glassBorder,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
   },
   aiHandle: {
     width: 40,
@@ -1163,32 +1247,51 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     backgroundColor: colors.glassBorder,
     alignSelf: 'center',
-    marginVertical: 12,
+    marginTop: 12,
+    marginBottom: 4,
   },
-  aiHeader: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    marginBottom: 16,
+  aiCloseBtn: {
+    alignSelf: 'flex-end',
+    padding: 8,
+    marginBottom: 4,
   },
-  aiTitle: {
-    color: colors.text,
-    fontSize: 22,
+  aiScrollContent: {
+    paddingBottom: 32,
+  },
+
+  // Evi header
+  eviHeader: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginBottom: 20,
+  },
+  eviEmoji: {
+    fontSize: 48,
+    marginBottom: 8,
+  },
+  eviName: {
+    color: colors.primary,
+    fontSize: 20,
     fontFamily: 'Outfit_600SemiBold',
+    marginBottom: 6,
   },
-  aiSubtitle: {
+  eviSubtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  eviSubtitle: {
     color: colors.textDim,
     fontSize: 14,
     fontFamily: 'Outfit_400Regular',
-    marginTop: 2,
   },
-  aiClose: {
-    padding: 6,
-    marginTop: 2,
+  eviCursor: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: 'Outfit_400Regular',
+    marginLeft: 1,
   },
-  aiScrollContent: {
-    paddingBottom: 16,
-  },
+
+  // Input + chips
   aiInput: {
     backgroundColor: colors.card,
     borderWidth: 1,
@@ -1219,6 +1322,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: 'Outfit_500Medium',
   },
+
+  // Send button
   aiSendButton: {
     height: 52,
     borderRadius: 16,
@@ -1231,14 +1336,119 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Outfit_600SemiBold',
   },
-  aiMessage: {
-    color: colors.primary,
+
+  // Evi loading state
+  eviLoading: {
+    alignItems: 'center',
+    paddingVertical: 24,
+    marginBottom: 20,
+  },
+  eviLoadingEmoji: {
+    fontSize: 40,
+    marginBottom: 12,
+  },
+  eviLoadingText: {
+    color: colors.textDim,
     fontSize: 14,
     fontFamily: 'Outfit_500Medium',
-    marginBottom: 12,
-    lineHeight: 20,
   },
-  aiResultsList: {
-    paddingRight: 8,
+
+  // AI message block
+  aiMessageBlock: {
+    backgroundColor: 'rgba(191,160,255,0.08)',
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
+  },
+  aiMessageText: {
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: 'Outfit_500Medium',
+    lineHeight: 22,
+  },
+  aiPlanLabel: {
+    color: colors.primary,
+    fontSize: 13,
+    fontFamily: 'Outfit_600SemiBold',
+    marginTop: 10,
+  },
+
+  // Result cards (vertical list)
+  aiResultCard: {
+    backgroundColor: colors.card,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    padding: 16,
+  },
+  aiResultBadge: {
+    alignSelf: 'flex-start',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    marginBottom: 8,
+  },
+  aiResultBadgeText: {
+    color: colors.text,
+    fontSize: 11,
+    fontFamily: 'Outfit_500Medium',
+  },
+  aiResultTitle: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold',
+    marginBottom: 6,
+    lineHeight: 22,
+  },
+  aiResultMeta: {
+    color: colors.textDim,
+    fontSize: 13,
+    fontFamily: 'Outfit_400Regular',
+    marginBottom: 3,
+  },
+  aiResultPrice: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    marginTop: 4,
+  },
+  aiMapsRow: {
+    marginTop: 12,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: colors.glassBorder,
+  },
+  aiMapsText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontFamily: 'Outfit_500Medium',
+  },
+  aiResultDivider: {
+    height: 1,
+    backgroundColor: colors.glassBorder,
+    marginVertical: 10,
+  },
+
+  // Budget summary
+  aiBudget: {
+    marginTop: 16,
+    backgroundColor: 'rgba(191,160,255,0.06)',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    padding: 16,
+  },
+  aiBudgetTitle: {
+    color: colors.text,
+    fontSize: 14,
+    fontFamily: 'Outfit_600SemiBold',
+    marginBottom: 4,
+  },
+  aiBudgetAmount: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontFamily: 'Outfit_500Medium',
   },
 });

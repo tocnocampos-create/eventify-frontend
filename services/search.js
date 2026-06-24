@@ -43,6 +43,16 @@ export async function fetchSearch({
  * AI-powered natural language event search.
  */
 export async function fetchAISearch({ prompt, limit = 8 } = {}) {
-  const { data } = await apiClient.post('/search/ai', { prompt, limit });
-  return data;
+  try {
+    const { data } = await apiClient.post('/search/ai', { prompt, limit }, { timeout: 15000 });
+    return data;
+  } catch (error) {
+    console.error(
+      '[fetchAISearch] failed:',
+      error?.response?.status,
+      error?.response?.data ?? error?.message,
+      '| url:', apiClient.defaults.baseURL + '/search/ai',
+    );
+    throw error;
+  }
 }
