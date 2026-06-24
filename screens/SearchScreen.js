@@ -68,6 +68,34 @@ const SEARCH_CATEGORY_MAP = {
   'Ferias':        { pillCategoryKey: 'Ferias' },
 };
 
+const EviCharacter = () => {
+  const { Svg, Path, Ellipse, Defs, RadialGradient, Stop } = require('react-native-svg');
+  return (
+    <Svg width="100" height="120" viewBox="0 0 340 400">
+      <Defs>
+        <RadialGradient id="pg" cx="40%" cy="35%" r="60%">
+          <Stop offset="0%" stopColor="#C084FC"/>
+          <Stop offset="100%" stopColor="#7C3AED"/>
+        </RadialGradient>
+        <RadialGradient id="fg" cx="45%" cy="40%" r="55%">
+          <Stop offset="0%" stopColor="#FFFFFF"/>
+          <Stop offset="100%" stopColor="#F3E8FF"/>
+        </RadialGradient>
+      </Defs>
+      <Ellipse cx="170" cy="375" rx="60" ry="12" fill="#C084FC" opacity="0.3"/>
+      <Path d="M170 20 C95 20 45 80 45 155 C45 230 115 295 148 325 C158 335 170 345 170 345 C170 345 182 335 192 325 C225 295 295 230 295 155 C295 80 245 20 170 20 Z" fill="url(#pg)"/>
+      <Ellipse cx="170" cy="158" rx="78" ry="78" fill="url(#fg)"/>
+      <Ellipse cx="148" cy="152" rx="16" ry="18" fill="#4C1D95"/>
+      <Ellipse cx="192" cy="152" rx="16" ry="18" fill="#4C1D95"/>
+      <Ellipse cx="143" cy="147" rx="6" ry="7" fill="white" opacity="0.9"/>
+      <Ellipse cx="187" cy="147" rx="6" ry="7" fill="white" opacity="0.9"/>
+      <Path d="M155 180 Q170 196 185 180" stroke="#7C3AED" strokeWidth="3" fill="none" strokeLinecap="round"/>
+      <Ellipse cx="132" cy="175" rx="10" ry="7" fill="#FDA4AF" opacity="0.55"/>
+      <Ellipse cx="208" cy="175" rx="10" ry="7" fill="#FDA4AF" opacity="0.55"/>
+    </Svg>
+  );
+};
+
 const AI_CHIPS = [
   '🎵 Jazz en vivo',
   '🎭 Teatro este finde',
@@ -798,7 +826,8 @@ export default function SearchScreen() {
           colors={[colors.authGradientStart, colors.authGradientEnd]}
           style={styles.fabGradient}
         >
-          <Sparkles size={24} color={colors.text} />
+          <Text style={{ fontSize: 22, lineHeight: 26 }}>📍</Text>
+          <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 11, color: '#FFFFFF', marginTop: 1 }}>Evi</Text>
         </LinearGradient>
       </TouchableOpacity>
 
@@ -806,14 +835,13 @@ export default function SearchScreen() {
       <Modal
         visible={aiModalVisible}
         animationType="slide"
-        transparent
+        presentationStyle="pageSheet"
         onRequestClose={handleAiModalClose}
       >
-        <View style={styles.aiOverlay}>
-          <KeyboardAvoidingView
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-            style={[styles.aiSheet, { height: SCREEN_HEIGHT * 0.92 }]}
-          >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.aiSheet}
+        >
             {/* Handle bar */}
             <View style={styles.aiHandle} />
 
@@ -828,13 +856,14 @@ export default function SearchScreen() {
               contentContainerStyle={styles.aiScrollContent}
             >
               {/* Evi Header */}
-              <View style={styles.eviHeader}>
-                <Text style={styles.eviEmoji}>📍</Text>
-                <Text style={styles.eviName}>Hola, soy Evi ✨</Text>
-                <View style={styles.eviSubtitleRow}>
-                  <Text style={styles.eviSubtitle}>¿Qué plan tienes en mente?</Text>
-                  <Animated.Text style={[styles.eviCursor, { opacity: blinkAnim }]}>|</Animated.Text>
-                </View>
+              <View style={{ alignItems: 'center', paddingTop: 12, paddingBottom: 8 }}>
+                <EviCharacter />
+                <Text style={{ fontFamily: 'Outfit_600SemiBold', fontSize: 18, color: colors.primary, marginTop: 8 }}>
+                  Hola, soy Evi ✨
+                </Text>
+                <Text style={{ fontFamily: 'Outfit_400Regular', fontSize: 13, color: colors.textDim, marginTop: 4 }}>
+                  ¿Qué plan tienes en mente?
+                </Text>
               </View>
 
               {/* Input */}
@@ -890,7 +919,7 @@ export default function SearchScreen() {
                     colors={[colors.authGradientStart, colors.authGradientEnd]}
                     style={styles.aiSendButton}
                   >
-                    <Text style={styles.aiSendText}>Buscar con IA ✨</Text>
+                    <Text style={styles.aiSendText}>Buscar con Evi 📍</Text>
                   </LinearGradient>
                 </Pressable>
               )}
@@ -955,8 +984,7 @@ export default function SearchScreen() {
                 </>
               )}
             </ScrollView>
-          </KeyboardAvoidingView>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
     </TabScreenLayout>
@@ -1205,34 +1233,30 @@ const styles = StyleSheet.create({
   // AI FAB
   fab: {
     position: 'absolute',
-    bottom: TAB_BAR_HEIGHT + 20,
+    bottom: TAB_BAR_HEIGHT + 32,
     left: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     overflow: 'hidden',
     zIndex: 999,
+    elevation: 10,
     ...Platform.select({
       ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12 },
-      android: { elevation: 10 },
       web: { boxShadow: `0 4px 20px ${colors.primary}66` },
     }),
   },
   fabGradient: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    width: 64,
+    height: 64,
+    borderRadius: 32,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
-  // AI Modal overlay + sheet
-  aiOverlay: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
+  // AI Modal sheet (pageSheet — no overlay needed)
   aiSheet: {
+    flex: 1,
     backgroundColor: colors.bg,
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
