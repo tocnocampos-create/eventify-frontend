@@ -38,3 +38,11 @@ export async function fetchSearch({
   const { data } = await apiClient.get('/search', { params });
   return data;
 }
+
+/**
+ * AI-powered natural language event search.
+ */
+export async function fetchAISearch({ prompt, limit = 8 } = {}) {
+  const { data } = await apiClient.post('/search/ai', { prompt, limit });
+  return data;
+}

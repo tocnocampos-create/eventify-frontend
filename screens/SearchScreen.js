@@ -11,6 +11,8 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  KeyboardAvoidingView,
+  FlatList,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import TabScreenLayout from '../components/TabScreenLayout';
@@ -25,7 +27,12 @@ import {
   ChevronUp,
   ChevronDown,
   Check,
+  Sparkles,
 } from 'lucide-react-native';
+import { TAB_BAR_HEIGHT } from '../components/FloatingTabBar';
+import { fetchAISearch } from '../services/search';
+import { transformEvent, transformVenue } from '../services/transformers';
+import { assignDateTags } from '../utils/filtering';
 import { useDiscover } from '../hooks/useDiscover';
 import { useVenues, useEvents } from '../hooks/useMapData';
 import { useSearch } from '../hooks/useSearch';
@@ -58,6 +65,21 @@ const SEARCH_CATEGORY_MAP = {
   'Ferias':        { pillCategoryKey: 'Ferias' },
 };
 
+const AI_CHIPS = [
+  '🎵 Jazz en vivo',
+  '🎭 Teatro este finde',
+  '👨‍👩‍👧 Salida familiar',
+  '🌿 Aire libre gratis',
+  '🎬 Cine + cena',
+  '🎨 Exposición de arte',
+];
+
+function transformEventWithInlineVenue(apiEvent) {
+  const venue = apiEvent.venue ? transformVenue(apiEvent.venue) : null;
+  const venueMap = venue ? new Map([[venue.id, venue]]) : new Map();
+  return transformEvent(apiEvent, venueMap);
+}
+
 export default function SearchScreen() {
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -69,6 +91,13 @@ export default function SearchScreen() {
   const [showCityDropdown, setShowCityDropdown] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [selectedVenueType, setSelectedVenueType] = useState(null);
+
+  // AI search state
+  const [aiModalVisible, setAiModalVisible] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiMessage, setAiMessage] = useState('');
+  const [aiResults, setAiResults] = useState([]);
 
   const navigation = useNavigation();
   const { isAuthenticated } = useAuth();
@@ -276,6 +305,33 @@ export default function SearchScreen() {
     'Eventos gratuitos',
     'Mercado París-Londres',
   ];
+
+  const handleAISearch = async () => {
+    if (!aiInput.trim()) return;
+    setAiLoading(true);
+    setAiMessage('');
+    setAiResults([]);
+    try {
+      const data = await fetchAISearch({ prompt: aiInput.trim(), limit: 8 });
+      setAiMessage(data.message || '');
+      const transformed = assignDateTags(
+        (data.events || []).map(transformEventWithInlineVenue)
+      );
+      setAiResults(transformed);
+    } catch {
+      setAiMessage('Algo salió mal. Intenta de nuevo.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleAiModalClose = () => {
+    setAiModalVisible(false);
+    setAiInput('');
+    setAiMessage('');
+    setAiResults([]);
+    setAiLoading(false);
+  };
 
   return (
     <TabScreenLayout style={styles.container}>
@@ -696,6 +752,129 @@ export default function SearchScreen() {
 
         </View>
       </ScrollView>
+
+      {/* AI Search FAB */}
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={() => setAiModalVisible(true)}
+        activeOpacity={0.85}
+      >
+        <LinearGradient
+          colors={[colors.authGradientStart, colors.authGradientEnd]}
+          style={styles.fabGradient}
+        >
+          <Sparkles size={22} color={colors.text} />
+        </LinearGradient>
+      </TouchableOpacity>
+
+      {/* AI Search Modal */}
+      <Modal
+        visible={aiModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={handleAiModalClose}
+      >
+        <View style={styles.aiOverlay}>
+          <KeyboardAvoidingView
+            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+            style={styles.aiSheet}
+          >
+            {/* Handle bar */}
+            <View style={styles.aiHandle} />
+
+            {/* Header */}
+            <View style={styles.aiHeader}>
+              <View>
+                <Text style={styles.aiTitle}>¿Qué tienes en mente?</Text>
+                <Text style={styles.aiSubtitle}>Describe tu plan perfecto</Text>
+              </View>
+              <TouchableOpacity onPress={handleAiModalClose} style={styles.aiClose}>
+                <X size={20} color={colors.textDim} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.aiScrollContent}
+            >
+              {/* Input */}
+              <TextInput
+                style={styles.aiInput}
+                multiline
+                placeholder="Ej: una cita romántica para escuchar jazz esta noche..."
+                placeholderTextColor={colors.textDim}
+                value={aiInput}
+                onChangeText={setAiInput}
+                autoFocus
+              />
+
+              {/* Suggestion chips */}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.chipsScroll}
+                contentContainerStyle={styles.chipsContent}
+              >
+                {AI_CHIPS.map((chip) => (
+                  <TouchableOpacity
+                    key={chip}
+                    style={styles.chip}
+                    onPress={() => setAiInput(chip)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={styles.chipText}>{chip}</Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+
+              {/* Send button */}
+              <Pressable
+                onPress={handleAISearch}
+                disabled={!aiInput.trim() || aiLoading}
+                style={{ opacity: !aiInput.trim() || aiLoading ? 0.5 : 1 }}
+              >
+                <LinearGradient
+                  colors={[colors.authGradientStart, colors.authGradientEnd]}
+                  style={styles.aiSendButton}
+                >
+                  {aiLoading ? (
+                    <ActivityIndicator size="small" color={colors.text} />
+                  ) : (
+                    <Text style={styles.aiSendText}>Buscar con IA ✨</Text>
+                  )}
+                </LinearGradient>
+              </Pressable>
+
+              {/* Results */}
+              {!!aiMessage && (
+                <Text style={styles.aiMessage}>{aiMessage}</Text>
+              )}
+              {aiResults.length > 0 && (
+                <FlatList
+                  data={aiResults}
+                  keyExtractor={(item) => String(item.id)}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.aiResultsList}
+                  renderItem={({ item }) => (
+                    <DiscoverEventCard
+                      event={item}
+                      badgeColors={badgeColors}
+                      onPress={() => {
+                        handleAiModalClose();
+                        navigateToEvent(item);
+                      }}
+                    />
+                  )}
+                  scrollEnabled
+                />
+              )}
+            </ScrollView>
+          </KeyboardAvoidingView>
+        </View>
+      </Modal>
+
     </TabScreenLayout>
   );
 }
@@ -938,4 +1117,128 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   retryText: { color: '#fff', fontSize: 14, fontFamily: 'Outfit_600SemiBold' },
+
+  // AI FAB
+  fab: {
+    position: 'absolute',
+    bottom: TAB_BAR_HEIGHT + 16,
+    left: 20,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 10 },
+      android: { elevation: 8 },
+      web: { boxShadow: `0 4px 20px ${colors.primary}66` },
+    }),
+  },
+  fabGradient: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // AI Modal
+  aiOverlay: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.55)',
+  },
+  aiSheet: {
+    backgroundColor: colors.bg,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    paddingHorizontal: 20,
+    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
+    maxHeight: '90%',
+    borderTopWidth: 1,
+    borderTopColor: colors.glassBorder,
+  },
+  aiHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.glassBorder,
+    alignSelf: 'center',
+    marginVertical: 12,
+  },
+  aiHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  aiTitle: {
+    color: colors.text,
+    fontSize: 22,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  aiSubtitle: {
+    color: colors.textDim,
+    fontSize: 14,
+    fontFamily: 'Outfit_400Regular',
+    marginTop: 2,
+  },
+  aiClose: {
+    padding: 6,
+    marginTop: 2,
+  },
+  aiScrollContent: {
+    paddingBottom: 16,
+  },
+  aiInput: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    color: colors.text,
+    fontSize: 15,
+    fontFamily: 'Outfit_400Regular',
+    minHeight: 80,
+    maxHeight: 120,
+    textAlignVertical: 'top',
+    marginBottom: 12,
+  },
+  chipsScroll: { marginBottom: 16 },
+  chipsContent: { gap: 8, paddingRight: 4 },
+  chip: {
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.glassBorder,
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  chipText: {
+    color: colors.textDim,
+    fontSize: 13,
+    fontFamily: 'Outfit_500Medium',
+  },
+  aiSendButton: {
+    height: 52,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 20,
+  },
+  aiSendText: {
+    color: colors.text,
+    fontSize: 16,
+    fontFamily: 'Outfit_600SemiBold',
+  },
+  aiMessage: {
+    color: colors.primary,
+    fontSize: 14,
+    fontFamily: 'Outfit_500Medium',
+    marginBottom: 12,
+    lineHeight: 20,
+  },
+  aiResultsList: {
+    paddingRight: 8,
+  },
 });
