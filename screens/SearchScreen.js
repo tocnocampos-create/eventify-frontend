@@ -119,6 +119,34 @@ export default function SearchScreen() {
   const eviFloatAnim = useRef(new Animated.Value(0)).current;
   const eviScaleAnim = useRef(new Animated.Value(0.8)).current;
   const eviWiggleAnim = useRef(new Animated.Value(0)).current;
+  const starAnim1 = useRef(new Animated.Value(0)).current;
+  const starAnim2 = useRef(new Animated.Value(0)).current;
+  const starAnim3 = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animateStar = (anim, delay) => {
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(anim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.quad),
+          }),
+          Animated.timing(anim, {
+            toValue: 0,
+            duration: 800,
+            useNativeDriver: true,
+            easing: Easing.inOut(Easing.quad),
+          }),
+        ])
+      ).start();
+    };
+    animateStar(starAnim1, 0);
+    animateStar(starAnim2, 400);
+    animateStar(starAnim3, 800);
+  }, []);
 
   useEffect(() => {
     const blink = Animated.loop(
@@ -852,22 +880,32 @@ export default function SearchScreen() {
       </ScrollView>
 
       {/* AI Search FAB */}
-      <TouchableOpacity
-        style={styles.fab}
-        onPress={() => setAiModalVisible(true)}
-        activeOpacity={0.85}
-      >
-        <LinearGradient
-          colors={[colors.authGradientStart, colors.authGradientEnd]}
-          style={styles.fabGradient}
-        >
-          <Image
-            source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDM0MCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBnIiBjeD0iNDAlIiBjeT0iMzUlIiByPSI2MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzA4NEZDIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdDM0FFRCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPGVsbGlwc2UgY3g9IjE3MCIgY3k9IjM3NSIgcng9IjYwIiByeT0iMTIiIGZpbGw9IiNDMDg0RkMiIG9wYWNpdHk9IjAuMyIvPgogIDxwYXRoIGQ9Ik0xNzAgMjAgQzk1IDIwIDQ1IDgwIDQ1IDE1NSBDNDUgMjMwIDExNSAyOTUgMTQ4IDMyNSBDMTU4IDMzNSAxNzAgMzQ1IDE3MCAzNDUgQzE3MCAzNDUgMTgyIDMzNSAxOTIgMzI1IEMyMjUgMjk1IDI5NSAyMzAgMjk1IDE1NSBDMjk1IDgwIDI0NSAyMCAxNzAgMjAgWiIgZmlsbD0idXJsKCNwZykiLz4KICA8ZWxsaXBzZSBjeD0iMTcwIiBjeT0iMTU4IiByeD0iNzgiIHJ5PSI3OCIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQ4IiBjeT0iMTUyIiByeD0iMTYiIHJ5PSIxOCIgZmlsbD0iIzRDMUQ5NSIvPgogIDxlbGxpcHNlIGN4PSIxOTIiIGN5PSIxNTIiIHJ4PSIxNiIgcnk9IjE4IiBmaWxsPSIjNEMxRDk1Ii8+CiAgPGVsbGlwc2UgY3g9IjE0MyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPGVsbGlwc2UgY3g9IjE4NyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPHBhdGggZD0iTTE1NSAxODAgUTE3MCAxOTYgMTg1IDE4MCIgc3Ryb2tlPSIjN0MzQUVEIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNGREE0QUYiIG9wYWNpdHk9IjAuNTUiLz4KICA8ZWxsaXBzZSBjeD0iMjA4IiBjeT0iMTc1IiByeD0iMTAiIHJ5PSI3IiBmaWxsPSIjRkRBNEFGIiBvcGFjaXR5PSIwLjU1Ii8+Cjwvc3ZnPg==' }}
-            style={{ width: 36, height: 44 }}
-            resizeMode="contain"
-          />
-        </LinearGradient>
-      </TouchableOpacity>
+      <View style={styles.fabWrapper}>
+        <Animated.Text style={[styles.fabStar, styles.fabStar1, {
+          opacity: starAnim1,
+          transform: [{ scale: starAnim1.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+        }]}>✦</Animated.Text>
+        <Animated.Text style={[styles.fabStar, styles.fabStar2, {
+          opacity: starAnim2,
+          transform: [{ scale: starAnim2.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+        }]}>✦</Animated.Text>
+        <Animated.Text style={[styles.fabStar, styles.fabStar3, {
+          opacity: starAnim3,
+          transform: [{ scale: starAnim3.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
+        }]}>✦</Animated.Text>
+        <TouchableOpacity style={styles.fab} onPress={() => setAiModalVisible(true)} activeOpacity={0.85}>
+          <LinearGradient
+            colors={['#9333EA', '#5B21B6']}
+            style={styles.fabGradient}
+          >
+            <Image
+              source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDM0MCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBnIiBjeD0iNDAlIiBjeT0iMzUlIiByPSI2MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzA4NEZDIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdDM0FFRCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPGVsbGlwc2UgY3g9IjE3MCIgY3k9IjM3NSIgcng9IjYwIiByeT0iMTIiIGZpbGw9IiNDMDg0RkMiIG9wYWNpdHk9IjAuMyIvPgogIDxwYXRoIGQ9Ik0xNzAgMjAgQzk1IDIwIDQ1IDgwIDQ1IDE1NSBDNDUgMjMwIDExNSAyOTUgMTQ4IDMyNSBDMTU4IDMzNSAxNzAgMzQ1IDE3MCAzNDUgQzE3MCAzNDUgMTgyIDMzNSAxOTIgMzI1IEMyMjUgMjk1IDI5NSAyMzAgMjk1IDE1NSBDMjk1IDgwIDI0NSAyMCAxNzAgMjAgWiIgZmlsbD0idXJsKCNwZykiLz4KICA8ZWxsaXBzZSBjeD0iMTcwIiBjeT0iMTU4IiByeD0iNzgiIHJ5PSI3OCIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQ4IiBjeT0iMTUyIiByeD0iMTYiIHJ5PSIxOCIgZmlsbD0iIzRDMUQ5NSIvPgogIDxlbGxpcHNlIGN4PSIxOTIiIGN5PSIxNTIiIHJ4PSIxNiIgcnk9IjE4IiBmaWxsPSIjNEMxRDk1Ii8+CiAgPGVsbGlwc2UgY3g9IjE0MyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPGVsbGlwc2UgY3g9IjE4NyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPHBhdGggZD0iTTE1NSAxODAgUTE3MCAxOTYgMTg1IDE4MCIgc3Ryb2tlPSIjN0MzQUVEIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNGREE0QUYiIG9wYWNpdHk9IjAuNTUiLz4KICA8ZWxsaXBzZSBjeD0iMjA4IiBjeT0iMTc1IiByeD0iMTAiIHJ5PSI3IiBmaWxsPSIjRkRBNEFGIiBvcGFjaXR5PSIwLjU1Ii8+Cjwvc3ZnPg==' }}
+              style={{ width: 36, height: 44 }}
+              resizeMode="contain"
+            />
+          </LinearGradient>
+        </TouchableOpacity>
+      </View>
 
       {/* AI Search Modal */}
       <Modal
@@ -1278,20 +1316,46 @@ const styles = StyleSheet.create({
   retryText: { color: '#fff', fontSize: 14, fontFamily: 'Outfit_600SemiBold' },
 
   // AI FAB
-  fab: {
+  fabWrapper: {
     position: 'absolute',
     bottom: TAB_BAR_HEIGHT + 32,
     left: 20,
+    width: 80,
+    height: 80,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+  fab: {
     width: 64,
     height: 64,
     borderRadius: 32,
     overflow: 'hidden',
-    zIndex: 999,
+    borderWidth: 1.5,
+    borderColor: 'rgba(192, 132, 252, 0.6)',
     elevation: 10,
     ...Platform.select({
       ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12 },
       web: { boxShadow: `0 4px 20px ${colors.primary}66` },
     }),
+  },
+  fabStar: {
+    position: 'absolute',
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  fabStar1: {
+    top: 2,
+    right: 4,
+  },
+  fabStar2: {
+    top: 6,
+    left: 2,
+  },
+  fabStar3: {
+    bottom: 4,
+    right: 2,
   },
   fabGradient: {
     width: 64,
