@@ -93,6 +93,22 @@ function transformEventWithInlineVenue(apiEvent) {
   return transformEvent(apiEvent, venueMap);
 }
 
+const EVI_BASE64_URI = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDM0MCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBnIiBjeD0iNDAlIiBjeT0iMzUlIiByPSI2MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzA4NEZDIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdDM0FFRCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPGVsbGlwc2UgY3g9IjE3MCIgY3k9IjM3NSIgcng9IjYwIiByeT0iMTIiIGZpbGw9IiNDMDg0RkMiIG9wYWNpdHk9IjAuMyIvPgogIDxwYXRoIGQ9Ik0xNzAgMjAgQzk1IDIwIDQ1IDgwIDQ1IDE1NSBDNDUgMjMwIDExNSAyOTUgMTQ4IDMyNSBDMTU4IDMzNSAxNzAgMzQ1IDE3MCAzNDUgQzE3MCAzNDUgMTgyIDMzNSAxOTIgMzI1IEMyMjUgMjk1IDI5NSAyMzAgMjk1IDE1NSBDMjk1IDgwIDI0NSAyMCAxNzAgMjAgWiIgZmlsbD0idXJsKCNwZykiLz4KICA8ZWxsaXBzZSBjeD0iMTcwIiBjeT0iMTU4IiByeD0iNzgiIHJ5PSI3OCIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQ4IiBjeT0iMTUyIiByeD0iMTYiIHJ5PSIxOCIgZmlsbD0iIzRDMUQ5NSIvPgogIDxlbGxpcHNlIGN4PSIxOTIiIGN5PSIxNTIiIHJ4PSIxNiIgcnk9IjE4IiBmaWxsPSIjNEMxRDk1Ii8+CiAgPGVsbGlwc2UgY3g9IjE0MyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPGVsbGlwc2UgY3g9IjE4NyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPHBhdGggZD0iTTE1NSAxODAgUTE3MCAxOTYgMTg1IDE4MCIgc3Ryb2tlPSIjN0MzQUVEIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNGREE0QUYiIG9wYWNpdHk9IjAuNTUiLz4KICA8ZWxsaXBzZSBjeD0iMjA4IiBjeT0iMTc1IiByeD0iMTAiIHJ5PSI3IiBmaWxsPSIjRkRBNEFGIiBvcGFjaXR5PSIwLjU1Ii8+Cjwvc3ZnPg==';
+
+const getCategoryColor = (cat) => {
+  const map = {
+    'Música':        '#7C3AED',
+    'Teatro':        '#0E7490',
+    'Cine':          '#1D4ED8',
+    'Arte':          '#BE185D',
+    'Comedia':       '#B45309',
+    'Familia':       '#15803D',
+    'Vida Nocturna': '#4C1D95',
+    'Ferias':        '#92400E',
+  };
+  return map[cat] || '#374151';
+};
+
 export default function SearchScreen() {
   const [inputValue, setInputValue] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -894,16 +910,11 @@ export default function SearchScreen() {
           transform: [{ scale: starAnim3.interpolate({ inputRange: [0, 1], outputRange: [0.4, 1] }) }],
         }]}>✦</Animated.Text>
         <TouchableOpacity style={styles.fab} onPress={() => setAiModalVisible(true)} activeOpacity={0.85}>
-          <LinearGradient
-            colors={['#9333EA', '#5B21B6']}
-            style={styles.fabGradient}
-          >
-            <Image
-              source={{ uri: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEyMCIgdmlld0JveD0iMCAwIDM0MCA0MDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CiAgPGRlZnM+CiAgICA8cmFkaWFsR3JhZGllbnQgaWQ9InBnIiBjeD0iNDAlIiBjeT0iMzUlIiByPSI2MCUiPgogICAgICA8c3RvcCBvZmZzZXQ9IjAlIiBzdG9wLWNvbG9yPSIjQzA4NEZDIi8+CiAgICAgIDxzdG9wIG9mZnNldD0iMTAwJSIgc3RvcC1jb2xvcj0iIzdDM0FFRCIvPgogICAgPC9yYWRpYWxHcmFkaWVudD4KICA8L2RlZnM+CiAgPGVsbGlwc2UgY3g9IjE3MCIgY3k9IjM3NSIgcng9IjYwIiByeT0iMTIiIGZpbGw9IiNDMDg0RkMiIG9wYWNpdHk9IjAuMyIvPgogIDxwYXRoIGQ9Ik0xNzAgMjAgQzk1IDIwIDQ1IDgwIDQ1IDE1NSBDNDUgMjMwIDExNSAyOTUgMTQ4IDMyNSBDMTU4IDMzNSAxNzAgMzQ1IDE3MCAzNDUgQzE3MCAzNDUgMTgyIDMzNSAxOTIgMzI1IEMyMjUgMjk1IDI5NSAyMzAgMjk1IDE1NSBDMjk1IDgwIDI0NSAyMCAxNzAgMjAgWiIgZmlsbD0idXJsKCNwZykiLz4KICA8ZWxsaXBzZSBjeD0iMTcwIiBjeT0iMTU4IiByeD0iNzgiIHJ5PSI3OCIgZmlsbD0id2hpdGUiLz4KICA8ZWxsaXBzZSBjeD0iMTQ4IiBjeT0iMTUyIiByeD0iMTYiIHJ5PSIxOCIgZmlsbD0iIzRDMUQ5NSIvPgogIDxlbGxpcHNlIGN4PSIxOTIiIGN5PSIxNTIiIHJ4PSIxNiIgcnk9IjE4IiBmaWxsPSIjNEMxRDk1Ii8+CiAgPGVsbGlwc2UgY3g9IjE0MyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPGVsbGlwc2UgY3g9IjE4NyIgY3k9IjE0NyIgcng9IjYiIHJ5PSI3IiBmaWxsPSJ3aGl0ZSIgb3BhY2l0eT0iMC45Ii8+CiAgPHBhdGggZD0iTTE1NSAxODAgUTE3MCAxOTYgMTg1IDE4MCIgc3Ryb2tlPSIjN0MzQUVEIiBzdHJva2Utd2lkdGg9IjMiIGZpbGw9Im5vbmUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxlbGxpcHNlIGN4PSIxMzIiIGN5PSIxNzUiIHJ4PSIxMCIgcnk9IjciIGZpbGw9IiNGREE0QUYiIG9wYWNpdHk9IjAuNTUiLz4KICA8ZWxsaXBzZSBjeD0iMjA4IiBjeT0iMTc1IiByeD0iMTAiIHJ5PSI3IiBmaWxsPSIjRkRBNEFGIiBvcGFjaXR5PSIwLjU1Ii8+Cjwvc3ZnPg==' }}
-              style={{ width: 36, height: 44 }}
-              resizeMode="contain"
-            />
-          </LinearGradient>
+          <Image
+            source={{ uri: EVI_BASE64_URI }}
+            style={{ width: 44, height: 54 }}
+            resizeMode="contain"
+          />
         </TouchableOpacity>
       </View>
 
@@ -967,24 +978,18 @@ export default function SearchScreen() {
               />
 
               {/* Suggestion chips */}
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                style={styles.chipsScroll}
-                contentContainerStyle={styles.chipsContent}
-              >
+              <View style={styles.aiChipsVertical}>
                 {AI_CHIPS.map((chip) => (
                   <TouchableOpacity
                     key={chip}
-                    style={styles.chip}
-                    onPress={() => setAiInput(chip)}
+                    style={styles.aiChipVertical}
+                    onPress={() => setAiInput(chip.replace(/^\S+\s/, ''))}
                     activeOpacity={0.7}
                   >
-                    <Text style={styles.chipText}>{chip}</Text>
+                    <Text style={styles.aiChipText}>{chip}</Text>
                   </TouchableOpacity>
                 ))}
-              </ScrollView>
+              </View>
 
               {/* Send button OR Evi loading state */}
               {aiLoading ? (
@@ -1009,64 +1014,95 @@ export default function SearchScreen() {
                 </Pressable>
               )}
 
-              {/* Results panorama */}
+              {/* Chat-style results */}
               {!!aiMessage && (
-                <>
-                  <View style={styles.aiMessageBlock}>
-                    <Text style={styles.aiMessageText}>📍 {aiMessage}</Text>
-                    {aiResults.length > 0 && (
-                      <Text style={styles.aiPlanLabel}>Tu plan incluye:</Text>
-                    )}
+                <View style={styles.chatContainer}>
+                  {/* Evi message bubble */}
+                  <View style={styles.chatRow}>
+                    <Image
+                      source={{ uri: EVI_BASE64_URI }}
+                      style={{ width: 28, height: 34 }}
+                      resizeMode="contain"
+                    />
+                    <View style={styles.eviBubble}>
+                      <Text style={styles.eviBubbleText}>{aiMessage}</Text>
+                    </View>
                   </View>
 
-                  {aiResults.map((event, idx) => (
-                    <View key={event.id ?? idx}>
-                      <TouchableOpacity
-                        style={styles.aiResultCard}
-                        activeOpacity={0.85}
-                        onPress={() => { handleAiModalClose(); navigateToEvent(event); }}
-                      >
+                  {/* Event panorama cards */}
+                  {aiResults.map((event, index) => (
+                    <TouchableOpacity
+                      key={event.id || index}
+                      style={styles.panoramaCard}
+                      activeOpacity={0.85}
+                      onPress={() => { handleAiModalClose(); navigateToEvent(event); }}
+                    >
+                      <View style={styles.panoramaHeader}>
                         {!!event.category && (
-                          <View style={[styles.aiResultBadge, { backgroundColor: badgeColors[event.category] || 'rgba(159,123,255,0.2)' }]}>
-                            <Text style={styles.aiResultBadgeText}>{event.category}</Text>
+                          <View style={[styles.categoryBadge, { backgroundColor: getCategoryColor(event.category) }]}>
+                            <Text style={styles.categoryBadgeText}>{event.category}</Text>
                           </View>
                         )}
-                        <Text style={styles.aiResultTitle} numberOfLines={2}>{event.title}</Text>
-                        <Text style={styles.aiResultMeta}>{formatEventDateTime(event)}</Text>
-                        {!!event.location && (
-                          <Text style={styles.aiResultMeta} numberOfLines={1}>{event.location}</Text>
+                        <Text style={styles.panoramaTitle}>{event.title}</Text>
+                      </View>
+
+                      <View style={styles.panoramaDetail}>
+                        <Text style={styles.panoramaDetailIcon}>📅</Text>
+                        <Text style={styles.panoramaDetailText}>
+                          {event.date} · {event.timeStart || 'Horario por confirmar'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.panoramaDetail}>
+                        <Text style={styles.panoramaDetailIcon}>📍</Text>
+                        <Text style={styles.panoramaDetailText}>
+                          {event.venueName || 'Venue por confirmar'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.panoramaDetail}>
+                        <Text style={styles.panoramaDetailIcon}>🎟️</Text>
+                        <Text style={styles.panoramaDetailText}>
+                          {event.price
+                            ? `Desde $${Math.round(event.price).toLocaleString('es-CL')}`
+                            : 'Entrada liberada'}
+                        </Text>
+                      </View>
+
+                      <View style={styles.panoramaDetail}>
+                        <Text style={styles.panoramaDetailIcon}>🚇</Text>
+                        <Text style={styles.panoramaDetailText}>~15-25 min desde Santiago centro</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.mapButton}
+                        onPress={() => Linking.openURL(
+                          `https://maps.google.com/?q=${encodeURIComponent((event.venueName || '') + ' Santiago')}`
                         )}
-                        {!!getEventPriceLabel(event) && (
-                          <Text style={styles.aiResultPrice}>{getEventPriceLabel(event)}</Text>
-                        )}
-                        <TouchableOpacity
-                          style={styles.aiMapsRow}
-                          onPress={() => Linking.openURL(
-                            `https://maps.google.com/?q=${encodeURIComponent((event.venueName || event.location || '') + ' Santiago')}`
-                          )}
-                        >
-                          <Text style={styles.aiMapsText}>📍 Cómo llegar</Text>
-                        </TouchableOpacity>
+                      >
+                        <Text style={styles.mapButtonText}>🗺️ Cómo llegar</Text>
                       </TouchableOpacity>
-                      {idx < aiResults.length - 1 && <View style={styles.aiResultDivider} />}
-                    </View>
+                    </TouchableOpacity>
                   ))}
 
-                  {/* Budget summary */}
-                  {aiResults.length > 0 && (
-                    <View style={styles.aiBudget}>
-                      <Text style={styles.aiBudgetTitle}>💰 Presupuesto estimado</Text>
-                      <Text style={styles.aiBudgetAmount}>
-                        {(() => {
-                          const total = aiResults.reduce((s, e) => s + (e.price || 0), 0);
-                          return total > 0
-                            ? `Desde $${total.toLocaleString('es-CL')} por persona`
-                            : 'Entrada liberada';
-                        })()}
+                  {/* Budget summary if multiple events */}
+                  {aiResults.length > 1 && (
+                    <View style={styles.budgetBlock}>
+                      <Text style={styles.budgetTitle}>💰 Presupuesto estimado por persona</Text>
+                      <Text style={styles.budgetText}>
+                        Entradas: ${Math.round(
+                          aiResults.reduce((sum, e) => sum + (e.price || 0), 0)
+                        ).toLocaleString('es-CL')}
+                      </Text>
+                      <Text style={styles.budgetText}>Transporte estimado: $2.000 – $5.000</Text>
+                      <Text style={styles.budgetSubtext}>
+                        Total aprox: ${Math.round(
+                          aiResults.reduce((sum, e) => sum + (e.price || 0), 0) + 3500
+                        ).toLocaleString('es-CL')} por persona
                       </Text>
                     </View>
                   )}
-                </>
+                </View>
               )}
             </ScrollView>
         </KeyboardAvoidingView>
@@ -1318,51 +1354,37 @@ const styles = StyleSheet.create({
   // AI FAB
   fabWrapper: {
     position: 'absolute',
-    bottom: TAB_BAR_HEIGHT + 32,
-    left: 20,
-    width: 80,
-    height: 80,
+    bottom: TAB_BAR_HEIGHT + 24,
+    left: 16,
+    width: 90,
+    height: 90,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
   },
   fab: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    overflow: 'hidden',
-    borderWidth: 1.5,
-    borderColor: 'rgba(192, 132, 252, 0.6)',
-    elevation: 10,
-    ...Platform.select({
-      ios: { shadowColor: colors.primary, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.5, shadowRadius: 12 },
-      web: { boxShadow: `0 4px 20px ${colors.primary}66` },
-    }),
+    width: 56,
+    height: 68,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   fabStar: {
     position: 'absolute',
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   fabStar1: {
-    top: 2,
-    right: 4,
+    top: 8,
+    right: 8,
   },
   fabStar2: {
-    top: 6,
-    left: 2,
+    top: 14,
+    left: 6,
   },
   fabStar3: {
-    bottom: 4,
-    right: 2,
-  },
-  fabGradient: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    alignItems: 'center',
-    justifyContent: 'center',
+    bottom: 10,
+    right: 6,
   },
 
   // AI Modal sheet (pageSheet — no overlay needed)
@@ -1442,20 +1464,24 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top',
     marginBottom: 12,
   },
-  chipsScroll: { marginBottom: 16 },
-  chipsContent: { gap: 8, paddingRight: 4 },
-  chip: {
+  aiChipsVertical: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
+  },
+  aiChipVertical: {
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.glassBorder,
     borderRadius: 20,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  chipText: {
-    color: colors.textDim,
-    fontSize: 13,
+  aiChipText: {
     fontFamily: 'Outfit_500Medium',
+    fontSize: 12,
+    color: colors.textDim,
   },
 
   // Send button
@@ -1488,102 +1514,106 @@ const styles = StyleSheet.create({
     fontFamily: 'Outfit_500Medium',
   },
 
-  // AI message block
-  aiMessageBlock: {
-    backgroundColor: 'rgba(191,160,255,0.08)',
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    borderRadius: 16,
-    padding: 16,
+  // Chat-style results
+  chatContainer: { marginTop: 12 },
+  chatRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginBottom: 16,
+    gap: 10,
   },
-  aiMessageText: {
-    color: colors.text,
-    fontSize: 15,
+  eviBubble: {
+    flex: 1,
+    backgroundColor: 'rgba(147,51,234,0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.2)',
+    borderRadius: 16,
+    borderTopLeftRadius: 4,
+    padding: 12,
+  },
+  eviBubbleText: {
     fontFamily: 'Outfit_500Medium',
-    lineHeight: 22,
+    fontSize: 14,
+    color: colors.text,
+    lineHeight: 20,
   },
-  aiPlanLabel: {
-    color: colors.primary,
-    fontSize: 13,
-    fontFamily: 'Outfit_600SemiBold',
-    marginTop: 10,
-  },
-
-  // Result cards (vertical list)
-  aiResultCard: {
+  panoramaCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.glassBorder,
-    padding: 16,
   },
-  aiResultBadge: {
+  panoramaHeader: { marginBottom: 10 },
+  panoramaTitle: {
+    fontFamily: 'Outfit_600SemiBold',
+    fontSize: 15,
+    color: colors.text,
+    marginTop: 6,
+  },
+  panoramaDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  panoramaDetailIcon: { fontSize: 14 },
+  panoramaDetailText: {
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 13,
+    color: colors.textDim,
+    flex: 1,
+  },
+  categoryBadge: {
     alignSelf: 'flex-start',
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  aiResultBadgeText: {
-    color: colors.text,
-    fontSize: 11,
+  categoryBadgeText: {
     fontFamily: 'Outfit_500Medium',
+    fontSize: 11,
+    color: 'white',
   },
-  aiResultTitle: {
-    color: colors.text,
-    fontSize: 16,
-    fontFamily: 'Outfit_600SemiBold',
-    marginBottom: 6,
-    lineHeight: 22,
+  mapButton: {
+    marginTop: 8,
+    backgroundColor: 'rgba(192,132,252,0.1)',
+    borderRadius: 10,
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.2)',
   },
-  aiResultMeta: {
-    color: colors.textDim,
+  mapButtonText: {
+    fontFamily: 'Outfit_500Medium',
     fontSize: 13,
-    fontFamily: 'Outfit_400Regular',
-    marginBottom: 3,
-  },
-  aiResultPrice: {
     color: colors.primary,
-    fontSize: 14,
-    fontFamily: 'Outfit_600SemiBold',
+  },
+  budgetBlock: {
+    backgroundColor: 'rgba(147,51,234,0.08)',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(192,132,252,0.15)',
     marginTop: 4,
   },
-  aiMapsRow: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: colors.glassBorder,
-  },
-  aiMapsText: {
-    color: colors.accent,
-    fontSize: 13,
-    fontFamily: 'Outfit_500Medium',
-  },
-  aiResultDivider: {
-    height: 1,
-    backgroundColor: colors.glassBorder,
-    marginVertical: 10,
-  },
-
-  // Budget summary
-  aiBudget: {
-    marginTop: 16,
-    backgroundColor: 'rgba(191,160,255,0.06)',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: colors.glassBorder,
-    padding: 16,
-  },
-  aiBudgetTitle: {
-    color: colors.text,
-    fontSize: 14,
+  budgetTitle: {
     fontFamily: 'Outfit_600SemiBold',
+    fontSize: 14,
+    color: colors.primary,
+    marginBottom: 8,
+  },
+  budgetText: {
+    fontFamily: 'Outfit_400Regular',
+    fontSize: 13,
+    color: colors.textDim,
     marginBottom: 4,
   },
-  aiBudgetAmount: {
-    color: colors.textDim,
+  budgetSubtext: {
+    fontFamily: 'Outfit_600SemiBold',
     fontSize: 14,
-    fontFamily: 'Outfit_500Medium',
+    color: colors.text,
+    marginTop: 4,
   },
 });
