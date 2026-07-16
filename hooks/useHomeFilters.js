@@ -300,8 +300,7 @@ export default function useHomeFilters(eventsData, searchQuery) {
 
     const byPrice = byText.filter((e) => {
       const price = getEventPrice(e);
-      // NULL price = unknown — only show when no price filter is active
-      if (price === null || price === undefined) return maxPrice >= configMaxPrice;
+      if (price === null || price === undefined) return true;
       return price <= maxPrice;
     });
 
