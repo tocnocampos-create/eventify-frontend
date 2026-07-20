@@ -236,6 +236,7 @@ export default function EventsScreen({ route }) {
   const eventsApiData = searchData?.events ?? [];
 
   const toggleCategory = (category) => {
+    setPillCategoryKey(null);
     setSelectedCategories((prev) => {
       const next = new Set(prev);
       if (next.has(category)) {
@@ -248,6 +249,7 @@ export default function EventsScreen({ route }) {
   };
 
   const toggleType = (type, category = null) => {
+    setPillCategoryKey(null);
     const cat = category || activeFilter;
     const typeKey = cat ? `${cat}::${type}` : type;
     setSelectedTypes((prev) => {
